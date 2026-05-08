@@ -34,7 +34,8 @@ class AdminController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('admin.dashboard', compact('stats', 'recentPayments', 'pendingPayments'));
+        $jobs = \App\Models\PrintJob::with('pdfFile')->orderBy('created_at', 'desc')->get();
+        return view('admin.dashboard', compact('stats', 'recentPayments', 'pendingPayments', 'jobs'));
     }
 
     /**
@@ -129,6 +130,40 @@ class AdminController extends Controller
         } catch (\Exception $e) {
             Log::error('Error al cancelar trabajo', ['error' => $e->getMessage()]);
             return back()->withErrors('Error al cancelar el trabajo.');
+        }
+    }
+
+    /**
+     * Eliminar trabajo de impresión (y su archivo físico).
+     */
+    public function deleteJob(PrintJob $printJob)
+    {
+        try {
+            $pdfFile = $printJob->pdfFile;
+
+            // 1. Borrar archivo físico si existe
+            if ($pdfFile && Storage::disk('public')->exists($pdfFile->file_path)) {
+                Storage::disk('public')->delete($pdfFile->file_path);
+            }
+
+            // 2. El pago se borrará por cascada (si está configurado) o manualmente
+            if ($printJob->payment) {
+                $printJob->payment->delete();
+            }
+
+            // 3. Borrar registros de BD
+            if ($pdfFile) {
+                $pdfFile->delete();
+            }
+            
+            $printJob->delete();
+
+            Log::info('Trabajo eliminado definitivamente', ['job_reference' => $printJob->job_reference]);
+
+            return redirect()->route('admin.print-jobs')->with('success', 'Trabajo y archivo eliminados correctamente.');
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar trabajo', ['error' => $e->getMessage()]);
+            return back()->withErrors('Error al intentar eliminar el trabajo.');
         }
     }
 

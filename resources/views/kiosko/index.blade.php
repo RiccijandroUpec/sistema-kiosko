@@ -32,7 +32,10 @@
                 </div>
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Kiosko de Impresiones</h1>
             </div>
-            <a href="{{ route('kiosko.search') }}" class="text-sm px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Buscar trabajo</a>
+            <div class="flex items-center gap-3">
+                <a href="{{ route('kiosko.search-form') }}" class="text-sm px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-medium">Buscar trabajo</a>
+                <a href="{{ route('login') }}" class="text-sm px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-sm font-medium">Administración</a>
+            </div>
         </div>
     </nav>
 

@@ -159,6 +159,14 @@ class KioskoController extends Controller
     }
 
     /**
+     * Mostrar formulario de búsqueda de trabajo.
+     */
+    public function searchForm()
+    {
+        return view('kiosko.search');
+    }
+
+    /**
      * Buscar trabajo por referencia (para la pantalla de estado).
      */
     public function searchJob(Request $request)

@@ -77,15 +77,20 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $job->created_at->format('d/m/Y H:i') }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                                     @if($job->status === 'pending')
-                                        <form action="{{ route('admin.job-approve', $job->id) }}" method="POST" style="display:inline;">
+                                        <form action="{{ route('admin.mark-printed', $job->id) }}" method="POST" style="display:inline;">
                                             @csrf
-                                            <button type="submit" class="text-green-600 hover:text-green-900 font-medium">Aprobar</button>
+                                            <button type="submit" class="text-green-600 hover:text-green-900 font-medium">Impreso</button>
                                         </form>
-                                        <form action="{{ route('admin.job-cancel', $job->id) }}" method="POST" style="display:inline;">
+                                        <form action="{{ route('admin.cancel-job', $job->id) }}" method="POST" style="display:inline;">
                                             @csrf
-                                            <button type="submit" class="text-red-600 hover:text-red-900 font-medium" onclick="return confirm('¿Cancelar trabajo?')">Cancelar</button>
+                                            <button type="submit" class="text-amber-600 hover:text-amber-900 font-medium" onclick="return confirm('¿Cancelar trabajo?')">Cancelar</button>
                                         </form>
                                     @endif
+                                    <form action="{{ route('admin.delete-job', $job->id) }}" method="POST" style="display:inline;">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-600 hover:text-red-900 font-medium ml-2" onclick="return confirm('¿Estás seguro de eliminar este trabajo y su archivo PDF permanentemente?')">Eliminar</button>
+                                    </form>
                                 </td>
                             </tr>
                             @empty

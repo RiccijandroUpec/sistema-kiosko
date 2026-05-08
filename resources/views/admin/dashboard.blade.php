@@ -8,7 +8,7 @@
     <div class="py-12 bg-gray-50 min-h-screen">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
-            <!-- Tarjetas de Estadísticas -->
+            <p class="text-sm text-gray-600">Total trabajos cargados: {{ $jobs->count() }}</p>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <!-- Total de Usuarios -->
                 <div class="bg-white rounded-lg shadow p-6 border-l-4 border-indigo-500">
@@ -91,15 +91,12 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
-                            @forelse(\App\Models\PrintJob::latest()->take(15)->get() as $job)
+                            @forelse($jobs as $job)
                             <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">#{{ $job->id }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <p class="font-semibold text-gray-900">{{ $job->user->name ?? 'N/A' }}</p>
-                                    <p class="text-sm text-gray-500">{{ $job->user->email ?? 'N/A' }}</p>
-                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap"><p class="font-semibold text-gray-900">{{ $job->email }}</p></td>
                                 <td class="px-6 py-4">
-                                    <p class="text-sm text-gray-900">{{ Str::limit($job->pdfFile->original_name ?? 'N/A', 30) }}</p>
+                                    <p class="text-sm text-gray-900">{{ $job->pdfFile->original_name ?? 'N/A' }}</p>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-gray-900">{{ $job->copies }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap font-semibold text-gray-900">${{ number_format($job->cost, 2) }}</td>
