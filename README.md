@@ -278,6 +278,27 @@ GET /api/health
 
 ## Configuración
 
+### Integración WhatsApp + Deepseek
+
+El proyecto incluye integración para responder mensajes de WhatsApp mediante Twilio y generar respuestas con Deepseek.
+
+1. Configura variables en `.env`:
+   - `DEEPSEEK_API_KEY`
+   - `DEEPSEEK_ENDPOINT` (default: `https://api.deepseek.ai/v1/chat`)
+   - `TWILIO_ACCOUNT_SID`
+   - `TWILIO_AUTH_TOKEN`
+   - `TWILIO_FROM_WHATSAPP` (sandbox típico: `whatsapp:+14155238886`)
+2. Expón tu app local con ngrok y usa la URL HTTPS en Twilio.
+3. En Twilio Sandbox de WhatsApp configura `When a message comes in` con:
+   - `POST https://TU-NGROK.ngrok.io/webhook/twilio`
+4. Limpia caché de configuración:
+
+```bash
+php artisan config:clear
+```
+
+5. Prueba enviando un mensaje al número sandbox de Twilio desde un número unido al sandbox.
+
 ### Variables de Entorno (.env)
 
 ```env
@@ -308,6 +329,15 @@ MAIL_FROM_ADDRESS=noreply@kiosko.com
 # Almacenamiento
 FILESYSTEM_DRIVER=local
 FILESYSTEM_VISIBILITY=public
+
+# Deepseek (IA)
+DEEPSEEK_API_KEY=tu_api_key
+DEEPSEEK_ENDPOINT=https://api.deepseek.ai/v1/chat
+
+# Twilio WhatsApp
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=tu_auth_token
+TWILIO_FROM_WHATSAPP=whatsapp:+14155238886
 ```
 
 ## Seguridad

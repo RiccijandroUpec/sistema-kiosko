@@ -5,6 +5,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\WhatsAppController;
 
 // ===== RUTAS PÚBLICAS DEL KIOSKO =====
 
@@ -51,4 +52,7 @@ Route::middleware('auth')->group(function () {
 
 // ===== RUTAS DE AUTENTICACIÓN =====
 require __DIR__.'/auth.php';
+
+// Twilio webhook for incoming WhatsApp messages
+Route::post('/webhook/twilio', [WhatsAppController::class, 'webhook']);
 

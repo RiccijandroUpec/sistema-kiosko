@@ -6,6 +6,7 @@ use App\Models\PrintJob;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use App\Services\WhatsAppService;
 
 class PrintService
 {
@@ -139,6 +140,16 @@ class PrintService
 
             // En producción, enviar email real
             // Mail::send(new PrintJobCompletedMail($printJob));
+
+            // Enviar WhatsApp si el usuario tiene teléfono
+            if (!empty($user->phone)) {
+                $message = "Tu impresión (ID: {$printJob->id}) ha sido completada. Gracias por usar el kiosko.";
+                try {
+                    app(WhatsAppService::class)->sendMessage('whatsapp:' . $user->phone, $message);
+                } catch (\Exception $e) {
+                    Log::error('Error enviando WhatsApp al completar impresión', ['error' => $e->getMessage()]);
+                }
+            }
         } elseif ($status === 'failed') {
             Log::warning("Notificación de error de impresión", [
                 'user_id' => $user->id,
@@ -148,6 +159,15 @@ class PrintService
 
             // En producción, enviar email real
             // Mail::send(new PrintJobFailedMail($printJob));
+
+            if (!empty($user->phone)) {
+                $message = "Hubo un error procesando tu impresión (ID: {$printJob->id}). Por favor intenta nuevamente o contacta al soporte.";
+                try {
+                    app(WhatsAppService::class)->sendMessage('whatsapp:' . $user->phone, $message);
+                } catch (\Exception $e) {
+                    Log::error('Error enviando WhatsApp al fallar impresión', ['error' => $e->getMessage()]);
+                }
+            }
         }
     }
 
