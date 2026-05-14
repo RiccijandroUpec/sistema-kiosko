@@ -34,17 +34,28 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Dashboard del admin
+    // Dashboard admin unificado
     Route::get('/admin', [AdminController::class, 'dashboard'])->name('admin.dashboard');
-    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard'); // Alias para compatibilidad con Laravel Breeze/Auth
+    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
 
-    // Gestión de trabajos
+    // APIs para el panel admin
+    Route::get('/admin/api/stats', [AdminController::class, 'apiStats'])->name('admin.api.stats');
+    Route::get('/admin/api/jobs', [AdminController::class, 'apiJobs'])->name('admin.api.jobs');
+    Route::get('/admin/api/pending-payments', [AdminController::class, 'apiPendingPayments'])->name('admin.api.pending-payments');
+
+    // Actualizar precios
+    Route::post('/admin/update-prices', [AdminController::class, 'updatePrices'])->name('admin.update-prices');
+
+    // Gestión de trabajos (legacy, mantener para compatibilidad)
     Route::get('/admin/trabajos', [AdminController::class, 'printJobs'])->name('admin.print-jobs');
     Route::get('/admin/trabajos/{printJob}', [AdminController::class, 'jobDetails'])->name('admin.job-details');
     Route::get('/admin/trabajos/{printJob}/descargar', [AdminController::class, 'downloadPdf'])->name('admin.download-pdf');
     Route::post('/admin/trabajos/{printJob}/impreso', [AdminController::class, 'markAsPrinted'])->name('admin.mark-printed');
     Route::post('/admin/trabajos/{printJob}/cancelar', [AdminController::class, 'cancelJob'])->name('admin.cancel-job');
     Route::delete('/admin/trabajos/{printJob}', [AdminController::class, 'deleteJob'])->name('admin.delete-job');
+
+    // Confirmar pago
+    Route::post('/admin/trabajos/{printJob}/confirmar-pago', [AdminController::class, 'markAsPrinted'])->name('admin.confirm-job-payment');
 
     // Gestión de pagos
     Route::post('/admin/pagos/{payment}/confirmar', [PaymentController::class, 'confirmPayment'])->name('admin.confirm-payment');

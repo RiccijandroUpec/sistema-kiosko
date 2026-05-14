@@ -216,4 +216,97 @@ class AdminController extends Controller
 
         return view('admin.statistics', compact('stats'));
     }
+
+    /**
+     * API: Estadísticas en JSON
+     */
+    public function apiStats()
+    {
+        return response()->json([
+            'pending_payments' => Payment::where('status', 'pending')->count(),
+            'confirmed_payments' => Payment::where('status', 'confirmed')->count(),
+            'ready_to_print' => PrintJob::where('status', 'printing')->where('paid', true)->count(),
+            'completed' => PrintJob::where('status', 'completed')->count(),
+            'cancelled' => PrintJob::where('status', 'cancelled')->count(),
+            'total_revenue' => Payment::where('status', 'confirmed')->sum('amount'),
+        ]);
+    }
+
+    /**
+     * API: Trabajos en JSON
+     */
+    public function apiJobs(Request $request)
+    {
+        $query = PrintJob::with('pdfFile', 'payment')->orderBy('created_at', 'desc');
+
+        if ($request->has('status') && $request->status) {
+            $query->where('status', $request->status);
+        }
+
+        $jobs = $query->get();
+
+        return response()->json([
+            'jobs' => $jobs->map(fn($job) => [
+                'id' => $job->id,
+                'job_reference' => $job->job_reference,
+                'status' => $job->status,
+                'paid' => $job->paid,
+                'copies' => $job->copies,
+                'color_type' => $job->color_type,
+                'cost' => $job->cost,
+                'pdf_file' => [
+                    'original_name' => $job->pdfFile->original_name,
+                ],
+            ]),
+        ]);
+    }
+
+    /**
+     * API: Pagos pendientes en JSON
+     */
+    public function apiPendingPayments()
+    {
+        $payments = Payment::where('status', 'pending')
+            ->with('printJob')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'payments' => $payments->map(fn($p) => [
+                'id' => $p->id,
+                'reference_code' => $p->reference_code,
+                'amount' => $p->amount,
+                'print_job_id' => $p->print_job_id,
+            ]),
+        ]);
+    }
+
+    /**
+     * Actualizar precios de impresión
+     */
+    public function updatePrices(Request $request)
+    {
+        $validated = $request->validate([
+            'cost_bw' => 'required|numeric|min:0',
+            'cost_color' => 'required|numeric|min:0',
+        ]);
+
+        // Actualizar el .env (o guardar en BD si prefieres)
+        try {
+            // Opción 1: Guardar en config temporal (se recarga al reiniciar)
+            config()->set('printing.cost_bw', $validated['cost_bw']);
+            config()->set('printing.cost_color', $validated['cost_color']);
+
+            // Opción 2: Si quieres persistencia, crea una tabla de settings
+            // Setting::updateOrCreate(['key' => 'cost_bw'], ['value' => $validated['cost_bw']]);
+            // Setting::updateOrCreate(['key' => 'cost_color'], ['value' => $validated['cost_color']]);
+
+            Log::info('Precios actualizados', $validated);
+
+            return response()->json(['success' => true, 'message' => 'Precios actualizados']);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar precios', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Error al actualizar'], 500);
+        }
+    }
 }
