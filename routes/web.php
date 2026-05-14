@@ -69,6 +69,7 @@ Route::middleware('auth')->group(function () {
 // ===== RUTAS DE AUTENTICACIÓN =====
 require __DIR__.'/auth.php';
 
-// Evolution API webhook for incoming WhatsApp messages
-Route::post('/webhook/evolution', [WhatsAppController::class, 'webhook']);
+// Meta WhatsApp Business API webhook for incoming messages
+Route::post('/webhook/whatsapp', [WhatsAppController::class, 'webhook']);
+Route::get('/webhook/whatsapp', [WhatsAppController::class, 'webhook']);
 

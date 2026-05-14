@@ -21,23 +21,6 @@ services:
     networks:
       - kiosko-network
 
-  # Evolution API (WhatsApp)
-  evolution:
-    image: athosbr/evolution-api:latest
-    container_name: kiosko_evolution
-    ports:
-      - "8080:8080"
-    environment:
-      - EVOLUTION_ENABLE_QRCODE=true
-      - EVOLUTION_ENABLE_SWAGGER=true
-    volumes:
-      - evolution_data:/evolution/instances
-    depends_on:
-      - db
-    networks:
-      - kiosko-network
-    restart: unless-stopped
-
   # Aplicación Laravel
   app:
     build:
@@ -54,10 +37,13 @@ services:
       APP_ENV: production
       APP_DEBUG: "false"
       APP_KEY: base64:your-app-key-here
-      EVOLUTION_API_BASE_URL: http://evolution:8080
-      EVOLUTION_API_KEY: your_evolution_api_key
-      EVOLUTION_INSTANCE: kiosko
-      EVOLUTION_WHATSAPP_NUMBER: "+14155238886"
+      WHATSAPP_BUSINESS_TOKEN: your_meta_access_token
+      WHATSAPP_BUSINESS_PHONE_ID: your_phone_id
+      WHATSAPP_BUSINESS_ACCOUNT_ID: your_waba_id
+      WHATSAPP_BUSINESS_PHONE_NUMBER: your_phone_number
+      WHATSAPP_API_VERSION: v18.0
+      WHATSAPP_BASE_URL: https://graph.instagram.com
+      WHATSAPP_WEBHOOK_VERIFY_TOKEN: kiosko_webhook_token_2024
       DEEPSEEK_API_KEY: your_deepseek_api_key
       DEEPSEEK_ENDPOINT: https://api.deepseek.com/chat/completions
       DEEPSEEK_MODEL: deepseek-chat
@@ -69,8 +55,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      evolution:
-        condition: service_started
     networks:
       - kiosko-network
     command: >
@@ -83,7 +67,6 @@ services:
 volumes:
   db_data:
   app_storage:
-  evolution_data:
 
 networks:
   kiosko-network:
