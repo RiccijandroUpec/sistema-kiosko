@@ -9,89 +9,76 @@ class DeepseekService
 {
     /**
      * Send a message to Deepseek and return a text reply.
-     * Adjust payload/response parsing according to Deepseek's actual API.
+     * Uses Deepseek's OpenAI-compatible API.
      */
     public function chat(string $message, array $context = []): string
     {
-        $apiKey = config('gemini.api_key');
-        $model = config('gemini.model', 'gemini-2.5-flash');
-        $endpointBase = rtrim((string) config('gemini.endpoint', 'https://generativelanguage.googleapis.com/v1beta/models'), '/');
-        $systemInstruction = config('gemini.system_instruction');
+        $apiKey = config('deepseek.api_key');
+        $endpoint = config('deepseek.endpoint', 'https://api.deepseek.com/chat/completions');
+        $model = config('deepseek.model', 'deepseek-chat');
 
         if (empty($apiKey)) {
             return $this->fallbackReply($message);
         }
 
-        $modelResource = str_starts_with($model, 'models/') ? $model : 'models/' . $model;
-        $endpoint = "{$endpointBase}/" . basename($modelResource) . ":generateContent";
-
         try {
             $payload = [
-                'contents' => [
+                'model' => $model,
+                'messages' => [
+                    [
+                        'role' => 'system',
+                        'content' => 'Eres un asistente breve y útil para un kiosko de impresiones. Responde en español y de forma concisa. Máximo 100 palabras.',
+                    ],
                     [
                         'role' => 'user',
-                        'parts' => [
-                            ['text' => $message],
-                        ],
+                        'content' => $message,
                     ],
                 ],
+                'temperature' => 0.7,
+                'max_tokens' => 500,
             ];
-
-            if (!empty($systemInstruction)) {
-                $payload['systemInstruction'] = [
-                    'parts' => [
-                        ['text' => $systemInstruction],
-                    ],
-                ];
-            }
 
             $response = Http::acceptJson()
                 ->withHeaders([
-                    'x-goog-api-key' => $apiKey,
+                    'Authorization' => "Bearer {$apiKey}",
                 ])
-                ->asJson()
+                ->timeout(10)
                 ->post($endpoint, $payload);
 
             if ($response->ok()) {
                 $json = $response->json();
-                if (is_array($json)) {
-                    if (isset($json['candidates'][0]['content']['parts'])) {
-                        $parts = $json['candidates'][0]['content']['parts'];
-                        $text = collect($parts)
-                            ->pluck('text')
-                            ->filter()
-                            ->implode('');
-
-                        if ($text !== '') {
-                            return trim($text);
-                        }
-                    }
-
-                    if (isset($json['reply'])) {
-                        return (string) $json['reply'];
+                
+                if (isset($json['choices'][0]['message']['content'])) {
+                    $content = trim($json['choices'][0]['message']['content']);
+                    if (!empty($content)) {
+                        return $content;
                     }
                 }
 
-                return is_string($json) ? $json : ($json['message'] ?? $this->fallbackReply($message));
+                Log::warning('Unexpected Deepseek response format', ['response' => $json]);
+                return $this->fallbackReply($message);
             }
 
-            Log::error('Gemini API error', ['status' => $response->status(), 'body' => $response->body()]);
-
-            if ($response->status() === 402) {
-                return 'Gemini no tiene cuota disponible en este momento. Puedo ayudarte con la subida del PDF y el flujo de impresión.';
-            }
+            Log::error('Deepseek API error', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
 
             if ($response->status() === 401) {
-                return 'Gemini no está autorizado en este momento. Revisa la API key.';
+                return 'Deepseek no está autorizado. Revisa la API key en config/deepseek.php';
             }
 
-            if ($response->status() === 400) {
-                return 'La petición a Gemini no fue válida. Revisa el modelo o el formato de la configuración.';
+            if ($response->status() === 429) {
+                return 'Deepseek está sobrecargado. Intenta de nuevo en unos segundos.';
+            }
+
+            if ($response->status() === 500) {
+                return 'Deepseek está experimentando problemas. Intenta de nuevo más tarde.';
             }
 
             return $this->fallbackReply($message);
         } catch (\Exception $e) {
-            Log::error('Gemini request failed', ['error' => $e->getMessage()]);
+            Log::error('Deepseek request failed', ['error' => $e->getMessage()]);
             return $this->fallbackReply($message);
         }
     }

@@ -16,7 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->validateCsrfTokens(except: [
-            'webhook/twilio',
+            'webhook/evolution',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

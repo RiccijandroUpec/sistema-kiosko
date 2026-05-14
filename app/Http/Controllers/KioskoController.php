@@ -193,15 +193,8 @@ class KioskoController extends Controller
      */
     public function generateQr()
     {
-        $whatsappNumber = config('twilio.whatsapp_number', '+1234567890');
-        $defaultMessage = config('twilio.whatsapp_message', 'Hola, quiero imprimir un PDF');
-        $useSandbox = filter_var(config('twilio.use_sandbox', false), FILTER_VALIDATE_BOOLEAN);
-        $sandboxJoinCode = trim((string) config('twilio.sandbox_join_code', ''));
-
-        $whatsappMessage = $defaultMessage;
-        if ($useSandbox && $sandboxJoinCode !== '') {
-            $whatsappMessage = 'join ' . $sandboxJoinCode;
-        }
+        $whatsappNumber = config('evolution.whatsapp_number', '+1234567890');
+        $whatsappMessage = config('evolution.whatsapp_message', 'Hola, quiero imprimir un PDF');
 
         $cleanNumber = str_replace(['+', ' ', '-'], '', $whatsappNumber);
         $whatsappLink = "https://wa.me/{$cleanNumber}?text=" . rawurlencode($whatsappMessage);

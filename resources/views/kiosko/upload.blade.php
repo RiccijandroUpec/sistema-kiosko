@@ -63,8 +63,8 @@
                                 <p class="text-gray-700 dark:text-gray-300 text-lg">
                                     <strong>Opción 2:</strong> O abre WhatsApp y envía tu PDF a:
                                 </p>
-                                <a href="https://wa.me/{{ str_replace(['+', ' ', '-'], '', config('twilio.whatsapp_number')) }}" target="_blank" class="inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition">
-                                    {{ config('twilio.whatsapp_number') }}
+                                <a href="https://wa.me/{{ str_replace(['+', ' ', '-'], '', config('evolution.whatsapp_number')) }}" target="_blank" class="inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition">
+                                    {{ config('evolution.whatsapp_number') }}
                                 </a>
                             </div>
                             

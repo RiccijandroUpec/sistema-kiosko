@@ -123,11 +123,7 @@
                 <!-- Columna derecha: Formulario de subida -->
                 <div class="xl:col-span-1">
                     @php
-                        $twilioSandboxEnabled = filter_var(config('twilio.use_sandbox', false), FILTER_VALIDATE_BOOLEAN);
-                        $twilioJoinCode = trim((string) config('twilio.sandbox_join_code', ''));
-                        $twilioQuickMessage = $twilioSandboxEnabled && $twilioJoinCode !== ''
-                            ? 'join ' . $twilioJoinCode
-                            : config('twilio.whatsapp_message', 'Hola, quiero imprimir un PDF');
+                        $whatsAppQuickMessage = config('evolution.whatsapp_message', 'Hola, quiero imprimir un PDF');
                     @endphp
                     <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-4 md:p-5 h-full flex flex-col">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-1">Sube tu PDF</h2>
@@ -153,13 +149,13 @@
                                 <!-- Botón directo principal -->
                                 <div class="bg-gradient-to-br from-green-400 to-emerald-500 dark:from-green-600 dark:to-emerald-600 rounded-2xl p-4 md:p-6 shadow-lg">
                                     <p class="text-white text-xs md:text-sm mb-2 font-semibold">Forma más rápida:</p>
-                                    <a href="https://wa.me/{{ str_replace(['+', ' ', '-'], '', config('twilio.whatsapp_number')) }}?text={{ rawurlencode($twilioQuickMessage) }}" target="_blank" class="inline-flex items-center justify-center gap-2 w-full bg-white hover:bg-gray-100 text-green-600 font-bold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg">
+                                    <a href="https://wa.me/{{ str_replace(['+', ' ', '-'], '', config('evolution.whatsapp_number')) }}?text={{ rawurlencode($whatsAppQuickMessage) }}" target="_blank" class="inline-flex items-center justify-center gap-2 w-full bg-white hover:bg-gray-100 text-green-600 font-bold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg">
                                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                                             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.272-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a9.87 9.87 0 00-5.031 1.378c-3.55 2.357-5.869 6.175-5.869 10.033 0 3.859 2.319 7.676 5.869 10.033 3.55 2.357 8.555 2.357 12.105 0 3.55-2.357 5.869-6.174 5.869-10.033 0-3.859-2.319-7.676-5.869-10.033a9.87 9.87 0 00-5.07-1.378h-.004zm0-2.367c5.432 0 10.534 1.649 14.71 4.7 4.176 3.051 6.862 7.169 6.862 11.535 0 4.365-2.686 8.484-6.862 11.535-4.176 3.051-9.278 4.7-14.71 4.7-5.433 0-10.534-1.649-14.71-4.7C1.266 20.429-1.42 16.31-1.42 11.945c0-4.366 2.686-8.484 6.862-11.535C4.618 1.649 9.72 0 15.051 0z"/>
                                         </svg>
                                         Abrir WhatsApp Ahora
                                     </a>
-                                    <p class="text-white text-xs mt-2">Se abrirá con: <span class="font-semibold">{{ $twilioQuickMessage }}</span></p>
+                                    <p class="text-white text-xs mt-2">Se abrirá con: <span class="font-semibold">{{ $whatsAppQuickMessage }}</span></p>
                                 </div>
 
                                 <!-- QR como alternativa -->
@@ -178,7 +174,7 @@
 
                                 <div class="mt-2 p-3 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg">
                                     <p class="text-xs md:text-sm text-green-800 dark:text-green-200">
-                                        💡 {{ $twilioSandboxEnabled ? 'Si es un número nuevo en sandbox, primero envía el mensaje prellenado y luego adjunta tu PDF.' : 'El bot recibirá tu PDF, lo procesará automáticamente y te enviará un enlace para continuar.' }}
+                                        💡 El bot recibirá tu PDF, lo procesará automáticamente y te enviará un enlace para continuar.
                                     </p>
                                 </div>
                             </div>

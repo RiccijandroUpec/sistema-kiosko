@@ -58,6 +58,6 @@ Route::middleware('auth')->group(function () {
 // ===== RUTAS DE AUTENTICACIÓN =====
 require __DIR__.'/auth.php';
 
-// Twilio webhook for incoming WhatsApp messages
-Route::post('/webhook/twilio', [WhatsAppController::class, 'webhook']);
+// Evolution API webhook for incoming WhatsApp messages
+Route::post('/webhook/evolution', [WhatsAppController::class, 'webhook']);
 
