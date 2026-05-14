@@ -47,16 +47,20 @@ class WhatsAppController extends Controller
     protected function verifyWebhook(Request $request)
     {
         $verifyToken = config('whatsapp-business.webhook_verify_token');
-        $mode = $request->get('hub_mode');
-        $token = $request->get('hub_verify_token');
-        $challenge = $request->get('hub_challenge');
+        $mode = $request->query('hub_mode', $request->query('hub.mode'));
+        $token = $request->query('hub_verify_token', $request->query('hub.verify_token'));
+        $challenge = $request->query('hub_challenge', $request->query('hub.challenge'));
 
         if ($mode === 'subscribe' && $token === $verifyToken) {
             Log::info('WhatsApp webhook verified');
             return response($challenge, 200);
         }
 
-        Log::warning('WhatsApp webhook verification failed', ['token' => $token]);
+        Log::warning('WhatsApp webhook verification failed', [
+            'mode' => $mode,
+            'token' => $token,
+            'challenge_present' => !empty($challenge),
+        ]);
         return response()->json(['error' => 'Invalid token'], 403);
     }
 
@@ -66,7 +70,8 @@ class WhatsAppController extends Controller
     protected function handleIncomingMessage(Request $request)
     {
         try {
-            $body = $request->json('entry.0.changes.0.value');
+            $payload = $request->all();
+            $body = data_get($payload, 'entry.0.changes.0.value', []);
 
             // Puede ser un mensaje o un cambio de estado
             if (empty($body['messages'])) {
@@ -74,7 +79,9 @@ class WhatsAppController extends Controller
             }
 
             $message = $body['messages'][0];
-            $from = $body['contacts'][0]['wa_id'] ?? null;
+            $from = data_get($body, 'contacts.0.wa_id')
+                ?? data_get($body, 'messages.0.from')
+                ?? null;
 
             if (!$from) {
                 return response()->json(['status' => 'error', 'message' => 'No sender']);
@@ -86,11 +93,11 @@ class WhatsAppController extends Controller
             }
 
             // Procesar según el tipo de mensaje
-            if ($message['type'] === 'text') {
-                $this->handleTextMessage($from, $message['text']['body']);
-            } elseif ($message['type'] === 'document') {
-                $this->handleDocumentMessage($from, $message['document']);
-            } elseif ($message['type'] === 'image') {
+            if (($message['type'] ?? '') === 'text') {
+                $this->handleTextMessage($from, data_get($message, 'text.body', ''));
+            } elseif (($message['type'] ?? '') === 'document') {
+                $this->handleDocumentMessage($from, data_get($message, 'document', []));
+            } elseif (($message['type'] ?? '') === 'image') {
                 // Ignorar imágenes por ahora
                 Log::info('Image received', ['from' => $from]);
             }

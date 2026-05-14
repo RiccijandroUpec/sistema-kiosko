@@ -43,6 +43,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/api/jobs', [AdminController::class, 'apiJobs'])->name('admin.api.jobs');
     Route::get('/admin/api/pending-payments', [AdminController::class, 'apiPendingPayments'])->name('admin.api.pending-payments');
 
+    // Pruebas de WhatsApp Business
+    Route::get('/admin/whatsapp/validate-credentials', [WhatsAppController::class, 'validateCredentials'])->name('admin.whatsapp.validate-credentials');
+    Route::post('/admin/whatsapp/test-message', [WhatsAppController::class, 'sendTestMessage'])->name('admin.whatsapp.test-message');
+
     // Actualizar precios
     Route::post('/admin/update-prices', [AdminController::class, 'updatePrices'])->name('admin.update-prices');
 

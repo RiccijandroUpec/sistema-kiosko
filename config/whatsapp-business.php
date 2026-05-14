@@ -12,7 +12,7 @@ return [
     'account_id' => env('WHATSAPP_BUSINESS_ACCOUNT_ID'),
     'phone_number' => env('WHATSAPP_BUSINESS_PHONE_NUMBER'),
     'api_version' => env('WHATSAPP_API_VERSION', 'v18.0'),
-    'base_url' => env('WHATSAPP_BASE_URL', 'https://graph.instagram.com'),
+    'base_url' => env('WHATSAPP_BASE_URL', 'https://graph.facebook.com'),
 
     /*
     |--------------------------------------------------------------------------

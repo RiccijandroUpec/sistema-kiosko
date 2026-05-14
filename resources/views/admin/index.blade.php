@@ -9,9 +9,14 @@
                 <h1 class="text-3xl font-bold text-gray-900">Panel Administrativo</h1>
                 <p class="text-gray-600 mt-1">Gestión de trabajos y precios</p>
             </div>
-            <button @click="openModal('settings')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">
-                ⚙️ Configuración
-            </button>
+            <div class="flex gap-2">
+                <button @click="openModal('whatsapp')" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">
+                    📲 WhatsApp
+                </button>
+                <button @click="openModal('settings')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">
+                    ⚙️ Configuración
+                </button>
+            </div>
         </div>
 
         <!-- Stats -->
@@ -86,6 +91,44 @@
         </div>
     </div>
 
+    <!-- MODAL: WhatsApp Business -->
+    <div x-show="modal === 'whatsapp'" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" @click.self="modal = null">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">WhatsApp Business</h3>
+
+            <div class="mb-4 flex gap-2">
+                <button type="button" @click="validateWhatsApp()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">
+                    Validar credenciales
+                </button>
+                <button type="button" @click="openTestForm = !openTestForm" class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 font-medium">
+                    Enviar prueba
+                </button>
+            </div>
+
+            <div x-show="whatsappResult" class="mb-4 rounded-lg border px-4 py-3 text-sm" :class="whatsappResult.valid ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800'">
+                <p x-text="whatsappResult.message || 'Sin respuesta'"></p>
+                <template x-if="whatsappResult.phone_number">
+                    <p class="mt-1 text-xs opacity-80">Número: <span x-text="whatsappResult.phone_number"></span></p>
+                </template>
+            </div>
+
+            <form x-show="openTestForm" @submit.prevent="sendWhatsAppTest()" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Número destino</label>
+                    <input type="text" x-model="testPhone" placeholder="+593978763955" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mensaje</label>
+                    <textarea x-model="testMessage" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg">Hola, prueba desde el panel admin</textarea>
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium" x-text="sendingTest ? 'Enviando...' : 'Enviar mensaje'"></button>
+                    <button type="button" @click="openTestForm = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cerrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('adminPanel', () => ({
@@ -93,6 +136,11 @@
             stats: { pending: 0, confirmed: 0, ready: 0, revenue: 0 },
             prices: { bw: 0.05, color: 0.20 },
             saving: false,
+            whatsappResult: null,
+            openTestForm: false,
+            testPhone: '+593978763955',
+            testMessage: 'Hola, prueba desde el panel admin',
+            sendingTest: false,
 
             init() {
                 this.loadStats();
@@ -201,6 +249,36 @@
                     console.error('Error:', e);
                 }
                 this.saving = false;
+            },
+
+            async validateWhatsApp() {
+                try {
+                    const res = await fetch('{{ route("admin.whatsapp.validate-credentials") }}');
+                    this.whatsappResult = await res.json();
+                } catch (e) {
+                    this.whatsappResult = { valid: false, message: 'No se pudo validar la conexión' };
+                    console.error('Error:', e);
+                }
+            },
+
+            async sendWhatsAppTest() {
+                this.sendingTest = true;
+                try {
+                    const res = await fetch('{{ route("admin.whatsapp.test-message") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({ phone: this.testPhone, message: this.testMessage })
+                    });
+                    const data = await res.json();
+                    this.whatsappResult = { valid: data.success, message: data.message, phone_number: this.testPhone };
+                } catch (e) {
+                    this.whatsappResult = { valid: false, message: 'No se pudo enviar el mensaje de prueba' };
+                    console.error('Error:', e);
+                }
+                this.sendingTest = false;
             },
 
             confirmPayment(jobId) {
