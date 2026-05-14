@@ -16,6 +16,7 @@ Route::get('/', [KioskoController::class, 'index'])->name('kiosko.index');
 Route::get('/subir', [KioskoController::class, 'uploadForm'])->name('kiosko.upload');
 Route::get('/subir-pdf', [KioskoController::class, 'uploadForm'])->name('pdf.upload'); // Alias para el menú
 Route::post('/subir', [KioskoController::class, 'uploadPdf'])->name('kiosko.upload-pdf');
+Route::get('/whatsapp-qr', [KioskoController::class, 'generateQr'])->name('kiosko.whatsapp-qr');
 
 Route::get('/configurar/{pdf}', [KioskoController::class, 'configureForm'])->name('kiosko.configure');
 Route::post('/crear-trabajo/{pdf}', [KioskoController::class, 'createPrintJob'])->name('kiosko.create-job');

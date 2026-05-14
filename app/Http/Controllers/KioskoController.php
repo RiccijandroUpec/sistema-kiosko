@@ -8,6 +8,8 @@ use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Smalot\PdfParser\Parser;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\PngWriter;
 
 class KioskoController extends Controller
 {
@@ -184,5 +186,32 @@ class KioskoController extends Controller
         }
 
         return redirect()->route('kiosko.status', $printJob->job_reference);
+    }
+
+    /**
+     * Generar código QR para WhatsApp.
+     */
+    public function generateQr()
+    {
+        $whatsappNumber = config('twilio.whatsapp_number', '+1234567890');
+        $defaultMessage = config('twilio.whatsapp_message', 'Hola, quiero imprimir un PDF');
+        $useSandbox = filter_var(config('twilio.use_sandbox', false), FILTER_VALIDATE_BOOLEAN);
+        $sandboxJoinCode = trim((string) config('twilio.sandbox_join_code', ''));
+
+        $whatsappMessage = $defaultMessage;
+        if ($useSandbox && $sandboxJoinCode !== '') {
+            $whatsappMessage = 'join ' . $sandboxJoinCode;
+        }
+
+        $cleanNumber = str_replace(['+', ' ', '-'], '', $whatsappNumber);
+        $whatsappLink = "https://wa.me/{$cleanNumber}?text=" . rawurlencode($whatsappMessage);
+
+        $qrCode = new QrCode($whatsappLink);
+
+        $writer = new PngWriter();
+        $result = $writer->write($qrCode);
+
+        return response($result->getString())
+            ->header('Content-Type', 'image/png');
     }
 }

@@ -22,7 +22,7 @@
         <div class="max-w-7xl w-full grid lg:grid-cols-12 gap-8">
             
             <!-- Columna de Vista Previa (Izquierda) -->
-            <div class="lg:col-span-7 xl:col-span-8 flex flex-col h-[85vh]">
+            <div class="hidden lg:flex lg:col-span-7 xl:col-span-8 flex-col h-[85vh]">
                 <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-full overflow-hidden">
                     <div id="preview-outer-container" class="bg-slate-100 dark:bg-slate-900 flex-1 overflow-y-auto p-8 flex flex-col items-center gap-8" style="scroll-behavior: smooth;">
                         <!-- Simulación de múltiples páginas -->
