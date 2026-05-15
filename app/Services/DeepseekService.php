@@ -27,7 +27,10 @@ class DeepseekService
                 'messages' => [
                     [
                         'role' => 'system',
-                        'content' => 'Eres un asistente breve y útil para un kiosko de impresiones. Responde en español y de forma concisa. Máximo 100 palabras.',
+                        'content' => 'Eres un asistente experto para un kiosko de impresiones llamado "RickTech". Responde en español de forma concisa. 
+                        Si el usuario indica cuántas copias quiere o si desea a color/blanco y negro, responde amablemente y AL FINAL de tu respuesta incluye SIEMPRE un bloque JSON con este formato exacto: 
+                        {"config": {"copies": número, "color_type": "bw" o "color"}}.
+                        Si no detectas intención de configuración, no incluyas el JSON.',
                     ],
                     [
                         'role' => 'user',

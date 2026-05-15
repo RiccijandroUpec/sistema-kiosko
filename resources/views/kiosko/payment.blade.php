@@ -3,160 +3,207 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Realizar Pago - Kiosko</title>
+    <title>Pago - RickTech</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+        [x-cloak] { display: none !important; }
+        @media (min-width: 768px) {
+            .no-scroll-pc { height: calc(100vh - 60px); overflow: hidden; }
+        }
+    </style>
 </head>
-<body class="font-sans antialiased bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800">
-    <nav class="bg-white dark:bg-slate-800 shadow-md p-4">
-        <div class="max-w-6xl mx-auto flex items-center justify-between">
-            <a href="{{ route('kiosko.index') }}" class="flex items-center gap-2 text-gray-900 dark:text-white hover:text-indigo-600">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                </svg>
-                Volver
-            </a>
+<body class="bg-slate-50 text-slate-900 antialiased" x-data="paymentPIN()">
+    
+    <!-- Header Ultra-Compacto -->
+    <div class="bg-white border-b border-slate-100 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-6 py-2">
+            <div class="flex items-center justify-center gap-6">
+                <div class="flex items-center gap-2 opacity-50">
+                    <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold bg-emerald-500 text-white">✓</div>
+                    <span class="text-[9px] font-bold uppercase tracking-widest">Archivo</span>
+                </div>
+                <div class="w-8 h-[1px] bg-slate-200"></div>
+                <div class="flex items-center gap-2">
+                    <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold bg-indigo-600 text-white ring-2 ring-indigo-100">3</div>
+                    <span class="text-[9px] font-bold text-indigo-600 uppercase tracking-widest">Pago</span>
+                </div>
+                <div class="w-8 h-[1px] bg-slate-100"></div>
+                <div class="flex items-center gap-2 text-slate-300">
+                    <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border border-slate-200">4</div>
+                    <span class="text-[9px] font-bold uppercase tracking-widest">Listo</span>
+                </div>
+            </div>
         </div>
-    </nav>
+    </div>
 
-    <div class="min-h-screen flex items-center justify-center px-4 py-12">
-        <div class="max-w-2xl w-full">
-            <div class="bg-white/95 dark:bg-slate-700 rounded-2xl shadow-xl ring-1 ring-slate-200 dark:ring-slate-600 p-8">
-                <div class="text-center mb-8">
-                    <div class="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
+    <main class="max-w-6xl mx-auto px-4 py-4 md:py-6 no-scroll-pc flex items-center">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+            
+            <!-- COLUMNA IZQUIERDA -->
+            <div class="space-y-4">
+                <div class="bg-indigo-600 rounded-[2rem] p-6 text-white shadow-xl relative overflow-hidden">
+                    <p class="text-indigo-100 text-xs font-semibold mb-1 opacity-80">Total a pagar</p>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-5xl font-black tracking-tight">${{ number_format($payment->amount, 2) }}</span>
+                        <span class="text-indigo-200 font-bold uppercase text-[10px] tracking-widest">USD</span>
                     </div>
-                    <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Realizar Pago</h2>
-                    <p class="text-gray-600 dark:text-gray-400 mt-2">Tu referencia de trabajo: <span class="font-mono font-bold text-lg text-indigo-600">{{ $printJob->job_reference }}</span></p>
-                </div>
-
-                <!-- Detalles del trabajo -->
-                <div class="bg-slate-50 dark:bg-slate-600 rounded-lg p-6 mb-8 border border-slate-200 dark:border-slate-500">
-                    <h3 class="font-semibold text-slate-900 dark:text-white mb-4">Detalles de tu trabajo</h3>
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                    
+                    <div class="mt-4 pt-4 border-t border-white/20 grid grid-cols-2 gap-4">
                         <div>
-                            <p class="text-slate-700 dark:text-slate-200">Páginas:</p>
-                            <p class="font-semibold text-slate-950 dark:text-white">{{ $printJob->pdfFile->pages_count }}</p>
+                            <p class="text-white/60 text-[9px] uppercase font-bold tracking-wider">Referencia</p>
+                            <p class="font-mono font-bold text-sm">{{ $printJob->job_reference }}</p>
                         </div>
-                        <div>
-                            <p class="text-slate-700 dark:text-slate-200">Copias:</p>
-                            <p class="font-semibold text-slate-950 dark:text-white">{{ $printJob->copies }}</p>
-                        </div>
-                        <div>
-                            <p class="text-slate-700 dark:text-slate-200">Impresión:</p>
-                            <p class="font-semibold text-slate-950 dark:text-white">
-                                @if ($printJob->color_type === 'color')
-                                    Color
-                                @else
-                                    B&N
-                                @endif
-                            </p>
-                        </div>
-                        <div>
-                            <p class="text-slate-700 dark:text-slate-200">Tamaño:</p>
-                            <p class="font-semibold text-slate-950 dark:text-white">{{ strtoupper($printJob->paper_size) }}</p>
-                        </div>
-                        <div>
-                            <p class="text-slate-700 dark:text-slate-200">Orientación:</p>
-                            <p class="font-semibold text-slate-950 dark:text-white">
-                                @if ($printJob->orientation === 'portrait')
-                                    Vertical
-                                @else
-                                    Horizontal
-                                @endif
-                            </p>
+                        <div class="text-right">
+                            <p class="text-white/60 text-[9px] uppercase font-bold tracking-wider">Configuración</p>
+                            <p class="font-bold text-sm">{{ $printJob->copies }}x {{ $printJob->color_type === 'color' ? 'Color' : 'B/N' }}</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Monto a pagar -->
-                <div class="rounded-lg p-8 mb-8 bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-800/30 border border-indigo-200 dark:border-indigo-700">
-                    <p class="text-indigo-700 dark:text-indigo-300 text-xs mb-2 font-semibold uppercase tracking-wide">Monto a pagar</p>
-                    <p class="text-5xl font-semibold text-indigo-950 dark:text-indigo-100">${{ number_format($payment->amount, 2) }}</p>
-                    <p class="text-sm text-indigo-800 dark:text-indigo-300 mt-3">USD</p>
+                <div class="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm flex items-center gap-4">
+                    <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <div class="text-xs">
+                        <p class="font-bold text-slate-800">Archivo: {{ Str::limit($printJob->pdfFile->original_name, 30) }}</p>
+                        <p class="text-slate-500">{{ $printJob->pdfFile->pages_count }} páginas • {{ strtoupper($printJob->paper_size) }}</p>
+                    </div>
                 </div>
+            </div>
 
-                <!-- Instrucciones de pago -->
-                <div class="space-y-6 mb-8">
-                    <div>
-                        <h3 class="font-bold text-gray-900 dark:text-white mb-4 text-lg">Instrucciones de Pago</h3>
-                        <p class="text-gray-700 dark:text-gray-200 mb-4 font-semibold">
-                            Realiza una transferencia bancaria con los siguientes datos:
-                        </p>
-                        <div class="bg-blue-50 dark:bg-slate-600 rounded-lg p-4 space-y-3 text-sm border border-blue-200 dark:border-slate-500 shadow-sm">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p class="text-blue-700 dark:text-blue-300 font-semibold text-xs uppercase">Banco</p>
-                                    <p class="font-semibold text-blue-950 dark:text-white text-lg mt-1">{{ config('printing.bank.name') }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-blue-700 dark:text-blue-300 font-semibold text-xs uppercase">Tipo de Cuenta</p>
-                                    <p class="font-semibold text-blue-950 dark:text-white text-lg mt-1">{{ config('printing.bank.account_type') }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-blue-700 dark:text-blue-300 font-semibold text-xs uppercase">Número de Cuenta</p>
-                                    <p class="font-mono font-semibold text-blue-950 dark:text-white text-lg mt-1">{{ config('printing.bank.account_number') }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-blue-700 dark:text-blue-300 font-semibold text-xs uppercase">RUC</p>
-                                    <p class="font-mono font-semibold text-blue-950 dark:text-white text-lg mt-1">{{ config('printing.bank.ruc') }}</p>
-                                </div>
+            <!-- COLUMNA DERECHA -->
+            <div class="bg-white rounded-[2rem] p-5 shadow-lg border border-slate-100 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-base font-black text-slate-800 mb-4 flex items-center gap-2">
+                        <div class="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                        </div>
+                        Pagar con Deuna! / Pichincha
+                    </h3>
+
+                    <div class="grid grid-cols-2 gap-4 items-center mb-4">
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                            <img src="{{ asset('images/qrpichincha.png') }}" alt="QR" class="w-44 h-44 mx-auto rounded-lg mb-2 shadow-sm">
+                            <p class="text-[10px] font-bold text-slate-800 uppercase tracking-tighter">Richard Stalyn Rodriguez</p>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 relative group">
+                                <p class="text-[8px] font-bold text-slate-400 uppercase">Nº de Cuenta</p>
+                                <p class="font-mono font-bold text-slate-800 text-xs">2210344445</p>
+                                <button onclick="copyToClipboard('2210344445')" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white text-indigo-600 rounded-lg shadow-sm hover:scale-110 transition-all">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                </button>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Referencia de pago -->
-                    <div>
-                        <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Referencia de Pago</h4>
-                        <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-600 rounded-lg p-4 shadow-sm">
-                            <p class="text-amber-900 dark:text-amber-100 text-sm mb-3 font-bold">⚠️ IMPORTANTE: Copia esta referencia en el concepto</p>
-                            <div class="flex items-center justify-between bg-white dark:bg-slate-700 p-4 rounded border border-amber-300 dark:border-amber-600">
-                                <code class="font-mono font-bold text-xl text-amber-800 dark:text-amber-300">{{ $payment->reference_code }}</code>
-                                <button type="button" onclick="copyToClipboard('{{ $payment->reference_code }}')" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded font-semibold transition-colors shadow-sm">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                    </svg>
+                            <div class="p-3 bg-amber-50 rounded-xl border border-dashed border-amber-200 relative">
+                                <p class="text-[8px] font-bold text-amber-600 uppercase">Concepto</p>
+                                <p class="font-mono font-black text-amber-800 text-sm tracking-widest">{{ $payment->reference_code }}</p>
+                                <button onclick="copyToClipboard('{{ $payment->reference_code }}')" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white text-amber-600 rounded-lg shadow-sm">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Próximos pasos -->
-                <div class="bg-green-50 dark:bg-green-900/30 border border-green-300 dark:border-green-600 rounded-lg p-4 mb-8 shadow-sm">
-                    <h4 class="font-bold text-green-900 dark:text-green-100 mb-3">✓ Después de pagar:</h4>
-                    <ol class="text-sm text-green-900 dark:text-green-100 space-y-2 list-decimal list-inside font-semibold">
-                        <li>El administrador confirmará tu pago</li>
-                        <li>Tu trabajo pasará a la cola de impresión</li>
-                        <li>Podrás ver el estado en cualquier momento</li>
-                        <li>¡Retira tu trabajo cuando esté listo!</li>
-                    </ol>
-                </div>
-
-                <!-- Botones de acción -->
-                <div class="flex flex-col gap-4">
-                    <a href="{{ route('kiosko.status', $printJob->job_reference) }}" class="block px-6 py-3 text-center text-lg font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:shadow-lg transition-all shadow-sm">
-                        Ver Estado del Trabajo
-                    </a>
-                    <a href="{{ route('kiosko.index') }}" class="block px-6 py-3 text-center text-lg font-semibold text-indigo-600 border-2 border-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all">
-                        Ir a la Página Principal
-                    </a>
+                <!-- Botones de Acción Mini -->
+                <div class="space-y-2">
+                    <div class="grid grid-cols-2 gap-2">
+                        <a href="https://link.deuna.app/open" class="py-3 bg-[#FFD100] text-black rounded-xl font-black text-[10px] text-center shadow-sm flex items-center justify-center gap-1">
+                            PAGAR CON DEUNA!
+                        </a>
+                        <a href="{{ route('kiosko.status', $printJob->job_reference) }}" class="py-3 bg-indigo-600 text-white rounded-xl font-black text-[10px] text-center shadow-sm">
+                            ESTADO EN VIVO
+                        </a>
+                    </div>
+                    <div class="flex gap-2">
+                        <a href="https://wa.me/{{ str_replace(['+', ' ', '-'], '', config('evolution.whatsapp_number')) }}?text={{ urlencode('Hola! Ya realicé el pago por Deuna. Mi referencia es: ' . $payment->reference_code . ' por un monto de $' . number_format($payment->amount, 2)) }}" 
+                           class="flex-[3] py-2.5 bg-emerald-500 text-white rounded-xl font-bold text-[10px] text-center flex items-center justify-center gap-1 shadow-md">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.414 0 .018 5.393 0 12.03c0 2.122.554 4.197 1.61 6.006L0 24l6.135-1.61a11.83 11.83 0 005.912 1.579h.005c6.637 0 12.032-5.392 12.034-12.029a11.78 11.78 0 00-3.486-8.484z"/></svg>
+                            ENVIAR COMPROBANTE
+                        </a>
+                        <button @click="openModal = true" class="flex-1 py-2 bg-slate-50 text-slate-400 rounded-xl font-bold text-[8px] uppercase border border-slate-100">
+                            🔓 PIN
+                        </button>
+                    </div>
                 </div>
             </div>
+        </div>
+    </main>
 
-            <!-- Ayuda -->
-            <div class="text-center mt-6 text-gray-600 dark:text-gray-400 text-sm">
-                <p>¿Necesitas ayuda? Contacta al administrador del kiosko.</p>
+    <!-- PIN Modal -->
+    <div x-show="openModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4" x-transition x-cloak>
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl" @click.away="openModal = false">
+            <h3 class="text-lg font-black text-slate-800 text-center mb-6">PIN Administrador</h3>
+            <div class="flex justify-center gap-3 mb-8">
+                <template x-for="i in 4">
+                    <div class="w-10 h-12 rounded-xl border-2 flex items-center justify-center text-xl font-black transition-all"
+                         :class="pin.length >= i ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-slate-100 bg-slate-50'">
+                        <span x-text="pin.length >= i ? '●' : ''"></span>
+                    </div>
+                </template>
             </div>
+            <div class="grid grid-cols-3 gap-3">
+                <template x-for="n in [1,2,3,4,5,6,7,8,9,0]">
+                    <button @click="addNumber(n)" class="h-12 rounded-xl bg-slate-50 text-lg font-bold text-slate-700 active:bg-indigo-600 active:text-white shadow-sm" x-text="n"></button>
+                </template>
+                <button @click="pin = ''" class="h-12 rounded-xl bg-red-50 text-red-500 font-bold active:bg-red-500">C</button>
+                <button @click="deleteNumber()" class="h-12 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z"></path></svg>
+                </button>
+            </div>
+            <p x-show="error" class="text-center text-red-500 font-bold mt-4 text-xs" x-text="error"></p>
         </div>
     </div>
 
     <script>
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
-                alert('Referencia copiada al portapapeles');
+                const toast = document.createElement('div');
+                toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-4 py-2 rounded-xl text-[10px] font-bold shadow-xl z-[110] animate-bounce';
+                toast.innerText = '✓ Copiado';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 1500);
             });
+        }
+
+        function paymentPIN() {
+            return {
+                openModal: false, pin: '', error: '',
+                init() {
+                    window.addEventListener('keydown', (e) => {
+                        if (!this.openModal) return;
+                        if (e.key >= '0' && e.key <= '9') {
+                            this.addNumber(e.key);
+                        } else if (e.key === 'Backspace') {
+                            this.deleteNumber();
+                        } else if (e.key === 'Escape') {
+                            this.openModal = false;
+                            this.pin = '';
+                        }
+                    });
+                },
+                async addNumber(n) {
+                    if (this.pin.length < 4) {
+                        this.pin += n;
+                        if (this.pin.length === 4) await this.verifyPIN();
+                    }
+                },
+                deleteNumber() { this.pin = this.pin.slice(0, -1); this.error = ''; },
+                async verifyPIN() {
+                    try {
+                        const response = await fetch('{{ route("kiosko.api.release-with-pin", $printJob->id) }}', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                            body: JSON.stringify({ pin: this.pin })
+                        });
+                        const data = await response.json();
+                        if (data.success) window.location.href = '{{ route("kiosko.status", $printJob->job_reference) }}';
+                        else { this.error = 'PIN Incorrecto'; this.pin = ''; setTimeout(() => this.error = '', 2000); }
+                    } catch (e) { this.error = 'Error'; this.pin = ''; }
+                }
+            }
         }
     </script>
 </body>

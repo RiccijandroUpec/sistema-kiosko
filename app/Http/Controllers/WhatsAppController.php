@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\PdfFile;
-use App\Services\WhatsAppBusinessService;
+use App\Models\PrintJob;
+use App\Models\Payment;
+use App\Services\EvolutionService;
 use App\Services\DeepseekService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -12,157 +14,182 @@ use Smalot\PdfParser\Parser;
 
 class WhatsAppController extends Controller
 {
-    protected WhatsAppBusinessService $whatsAppService;
+    protected EvolutionService $evolutionService;
     protected DeepseekService $deepseekService;
 
     public function __construct(
-        WhatsAppBusinessService $whatsAppService,
+        EvolutionService $evolutionService,
         DeepseekService $deepseekService
     ) {
-        $this->whatsAppService = $whatsAppService;
+        $this->evolutionService = $evolutionService;
         $this->deepseekService = $deepseekService;
     }
 
     /**
-     * Webhook para recibir mensajes de WhatsApp (Meta)
+     * Webhook para recibir mensajes de Evolution API
      */
     public function webhook(Request $request)
     {
-        // Verificar el token del webhook (GET para verificación inicial)
-        if ($request->isMethod('get')) {
-            return $this->verifyWebhook($request);
+        Log::emergency('!!!!! WEBHOOK ACTIVADO - EL MENSAJE LLEGÓ !!!!!');
+        $payload = $request->all();
+        
+        // Log para depuración
+        Log::info('Incoming Evolution Webhook', ['event' => $payload['event'] ?? 'unknown']);
+
+        // Solo procesamos mensajes nuevos (messages.upsert)
+        if (($payload['event'] ?? '') !== 'messages.upsert') {
+            return response()->json(['status' => 'ignored']);
         }
 
-        // Procesar mensajes entrantes (POST)
-        if ($request->isMethod('post')) {
-            return $this->handleIncomingMessage($request);
-        }
-
-        return response()->json(['error' => 'Method not allowed'], 405);
+        return $this->handleIncomingMessage($payload['data'] ?? []);
     }
 
     /**
-     * Verificar token del webhook (Meta)
+     * Procesar mensajes entrantes de Evolution API
      */
-    protected function verifyWebhook(Request $request)
-    {
-        $verifyToken = config('whatsapp-business.webhook_verify_token');
-        $mode = $request->query('hub_mode', $request->query('hub.mode'));
-        $token = $request->query('hub_verify_token', $request->query('hub.verify_token'));
-        $challenge = $request->query('hub_challenge', $request->query('hub.challenge'));
-
-        if ($mode === 'subscribe' && $token === $verifyToken) {
-            Log::info('WhatsApp webhook verified');
-            return response($challenge, 200);
-        }
-
-        Log::warning('WhatsApp webhook verification failed', [
-            'mode' => $mode,
-            'token' => $token,
-            'challenge_present' => !empty($challenge),
-        ]);
-        return response()->json(['error' => 'Invalid token'], 403);
-    }
-
-    /**
-     * Procesar mensajes entrantes de Meta
-     */
-    protected function handleIncomingMessage(Request $request)
+    protected function handleIncomingMessage(array $data)
     {
         try {
-            $payload = $request->all();
-            $body = data_get($payload, 'entry.0.changes.0.value', []);
+            $key = $data['key'] ?? [];
+            $message = $data['message'] ?? [];
+            $fromJid = $key['remoteJid'] ?? '';
+            $messageId = $key['id'] ?? '';
 
-            // Puede ser un mensaje o un cambio de estado
-            if (empty($body['messages'])) {
-                return response()->json(['status' => 'ok']);
+            if (!$fromJid || str_contains($fromJid, '@g.us')) {
+                // Ignorar si no hay remitente o si es un grupo
+                return response()->json(['status' => 'ignored']);
             }
 
-            $message = $body['messages'][0];
-            $from = data_get($body, 'contacts.0.wa_id')
-                ?? data_get($body, 'messages.0.from')
-                ?? null;
+            $from = explode('@', $fromJid)[0];
 
-            if (!$from) {
-                return response()->json(['status' => 'error', 'message' => 'No sender']);
+            // 1. Mensaje de Texto
+            $text = $message['conversation'] 
+                 ?? $message['extendedTextMessage']['text'] 
+                 ?? $message['imageMessage']['caption'] 
+                 ?? $message['videoMessage']['caption'] 
+                 ?? '';
+
+            Log::info('Processing message from', ['from' => $from, 'text' => $text]);
+
+            if (!empty($text)) {
+                $this->handleTextMessage($from, $text);
             }
 
-            // Agregar + al número si no lo tiene
-            if (!str_starts_with($from, '+')) {
-                $from = '+' . $from;
-            }
-
-            // Procesar según el tipo de mensaje
-            if (($message['type'] ?? '') === 'text') {
-                $this->handleTextMessage($from, data_get($message, 'text.body', ''));
-            } elseif (($message['type'] ?? '') === 'document') {
-                $this->handleDocumentMessage($from, data_get($message, 'document', []));
-            } elseif (($message['type'] ?? '') === 'image') {
-                // Ignorar imágenes por ahora
-                Log::info('Image received', ['from' => $from]);
-            }
-
-            // Marcar como leído
-            if (isset($message['id'])) {
-                $this->whatsAppService->markAsRead($message['id']);
+            // 2. Documento (PDF)
+            if (isset($message['documentMessage'])) {
+                $this->handleDocumentMessage($from, $messageId, $message['documentMessage']);
             }
 
             return response()->json(['status' => 'ok']);
         } catch (\Exception $e) {
-            Log::error('WhatsApp webhook error', ['error' => $e->getMessage()]);
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
+            Log::error('Evolution handle error', ['error' => $e->getMessage()]);
+            return response()->json(['status' => 'error'], 500);
         }
     }
 
     /**
-     * Manejar mensaje de texto
+     * Manejar mensaje de texto con IA
      */
     protected function handleTextMessage(string $from, string $text)
     {
-        // Obtener respuesta de la IA
+        // Obtener respuesta de la IA (Deepseek)
+        Log::info('Asking AI...', ['text' => $text]);
         $aiResponse = $this->deepseekService->chat($text);
+        Log::info('AI Response received', ['response' => $aiResponse]);
 
-        // Enviar respuesta
-        $this->whatsAppService->sendMessage($from, $aiResponse);
+        // Buscar JSON en la respuesta de la IA (para configuración automática)
+        if (preg_match('/\{.*\}/s', $aiResponse, $matches)) {
+            $jsonStr = $matches[0];
+            $data = json_decode($jsonStr, true);
 
-        // Enviar link para descargar PDF
-        $downloadLink = route('kiosko.index') . '?wa=' . urlencode($from);
-        $this->whatsAppService->sendMessage(
-            $from,
-            "🖨️ Para imprimir un PDF, usa este link: " . $downloadLink
-        );
+            if (isset($data['config'])) {
+                $config = $data['config'];
+                
+                // Buscar el último PDF enviado por este número
+                $lastPdf = PdfFile::where('email', $from)->orderBy('created_at', 'desc')->first();
 
-        Log::info('Text message processed', ['from' => $from, 'text' => $text]);
+                if ($lastPdf) {
+                    $copies = $config['copies'] ?? 1;
+                    $colorType = $config['color_type'] ?? 'bw';
+
+                    $costBW = config('printing.cost_bw', 0.05);
+                    $costColor = config('printing.cost_color', 0.20);
+                    $costPerPage = $colorType === 'color' ? $costColor : $costBW;
+                    $totalCost = $lastPdf->pages_count * $copies * $costPerPage;
+
+                    // Crear Trabajo de Impresión
+                    $printJob = PrintJob::create([
+                        'job_reference' => PrintJob::generateJobReference($lastPdf->original_name),
+                        'pdf_file_id' => $lastPdf->id,
+                        'email' => $from,
+                        'copies' => $copies,
+                        'color_type' => $colorType,
+                        'paper_size' => 'a4',
+                        'orientation' => 'portrait',
+                        'cost' => $totalCost,
+                        'status' => 'pending',
+                        'paid' => false,
+                    ]);
+
+                    // Crear Registro de Pago
+                    $payment = Payment::create([
+                        'print_job_id' => $printJob->id,
+                        'reference_code' => Payment::generateReferenceCode(),
+                        'amount' => $totalCost,
+                        'status' => 'pending',
+                    ]);
+
+                    // Limpiar el JSON de la respuesta para el usuario
+                    $cleanResponse = trim(preg_replace('/\{.*\}/s', '', $aiResponse));
+                    
+                    $this->evolutionService->sendMessage($from, $cleanResponse);
+                    $this->evolutionService->sendMessage($from, 
+                        "✅ ¡Impresión configurada!\n\n" .
+                        "📍 Ref: *{$printJob->job_reference}*\n" .
+                        "💰 Total: *${$totalCost}*\n" .
+                        "📝 Detalle: {$copies} copias • " . ($colorType === 'color' ? 'COLOR' : 'B/N') . "\n\n" .
+                        "Puedes pagar usando el código QR en el kiosko."
+                    );
+                    return;
+                }
+            }
+        }
+
+        // Si no hay config, enviar solo el texto de la IA
+        $cleanResponse = trim(preg_replace('/\{.*\}/s', '', $aiResponse));
+        $this->evolutionService->sendMessage($from, $cleanResponse ?: $aiResponse);
     }
 
     /**
      * Manejar documento (PDF)
      */
-    protected function handleDocumentMessage(string $from, array $document)
+    protected function handleDocumentMessage(string $from, string $messageId, array $docMessage)
     {
         try {
-            $mediaId = $document['id'] ?? null;
-            $fileName = $document['filename'] ?? 'documento.pdf';
-
-            if (!$mediaId) {
-                $this->whatsAppService->sendMessage($from, 'Error: No se pudo procesar el documento.');
+            $fileName = $docMessage['fileName'] ?? 'documento.pdf';
+            
+            Log::info('PDF Document Message payload', ['messageId' => $messageId, 'doc' => $docMessage]);
+            
+            // Solo aceptamos PDFs
+            if (!str_contains(strtolower($fileName), '.pdf') && ($docMessage['mimetype'] ?? '') !== 'application/pdf') {
+                $this->evolutionService->sendMessage($from, "Lo siento, por ahora solo puedo procesar archivos PDF. 📄");
                 return;
             }
 
-            // Descargar el archivo desde Meta
-            $fileContent = $this->downloadMediaFromMeta($mediaId);
+            // Descargar el archivo usando el servicio de Evolution
+            $fileContent = $this->evolutionService->downloadMedia($messageId);
 
             if (!$fileContent) {
-                $this->whatsAppService->sendMessage($from, 'Error: No se pudo descargar el documento.');
+                $this->evolutionService->sendMessage($from, "Hubo un problema al descargar tu archivo. ¿Podrías intentarlo de nuevo?");
                 return;
             }
 
-            // Guardar archivo
+            // Guardar archivo físicamente
             $uniqueFileName = uniqid() . '_' . time() . '.pdf';
             $path = "pdfs/{$uniqueFileName}";
             Storage::disk('public')->put($path, $fileContent);
 
-            // Procesar PDF
+            // Contar páginas
             $parser = new Parser();
             $document = $parser->parseContent($fileContent);
             $pages = count($document->getPages());
@@ -177,94 +204,30 @@ class WhatsAppController extends Controller
                 'file_size' => strlen($fileContent) / 1024,
             ]);
 
-            // Enviar link de configuración
+            // Enviar respuesta con link
             $configLink = route('kiosko.configure', $pdfFile->id);
-            $this->whatsAppService->sendMessage(
+            
+            $this->evolutionService->sendMessage(
                 $from,
-                "📄 PDF recibido correctamente ({$pages} páginas).\n\n" .
-                "Usa este link para configurar tu impresión: {$configLink}"
+                "📄 ¡He recibido tu archivo! *{$fileName}* ({$pages} páginas).\n\n" .
+                "Dime cómo quieres imprimirlo (ej: 'Quiero 3 copias a color') o usa este link para configurar: \n{$configLink}"
             );
 
-            Log::info('PDF processed from WhatsApp', ['from' => $from, 'pages' => $pages]);
         } catch (\Exception $e) {
-            Log::error('Error processing PDF from WhatsApp', ['error' => $e->getMessage()]);
-            $this->whatsAppService->sendMessage($from, 'Error al procesar el PDF.');
+            Log::error('Error processing PDF from Evolution', ['error' => $e->getMessage()]);
+            $this->evolutionService->sendMessage($from, "No pude procesar ese PDF. Asegúrate de que no tenga contraseña.");
         }
     }
 
     /**
-     * Descargar media desde Meta
-     */
-    protected function downloadMediaFromMeta(string $mediaId): ?string
-    {
-        try {
-            $token = config('whatsapp-business.token');
-            $apiVersion = config('whatsapp-business.api_version');
-            $baseUrl = config('whatsapp-business.base_url');
-
-            // Obtener URL del media
-            $mediaResponse = \Illuminate\Support\Facades\Http::withToken($token)
-                ->get("{$baseUrl}/{$apiVersion}/{$mediaId}");
-
-            if (!$mediaResponse->successful()) {
-                Log::error('Error getting media URL', ['response' => $mediaResponse->json()]);
-                return null;
-            }
-
-            $mediaUrl = $mediaResponse->json('url');
-
-            if (!$mediaUrl) {
-                return null;
-            }
-
-            // Descargar el archivo
-            $fileResponse = \Illuminate\Support\Facades\Http::withToken($token)
-                ->get($mediaUrl);
-
-            if ($fileResponse->successful()) {
-                return $fileResponse->body();
-            }
-
-            return null;
-        } catch (\Exception $e) {
-            Log::error('Error downloading media from Meta', ['error' => $e->getMessage()]);
-            return null;
-        }
-    }
-
-    /**
-     * Enviar mensaje de prueba (para testing)
-     */
-    public function sendTestMessage(Request $request)
-    {
-        $request->validate([
-            'phone' => 'required|string',
-            'message' => 'required|string',
-        ]);
-
-        try {
-            $sent = $this->whatsAppService->sendMessage($request->phone, $request->message);
-
-            return response()->json([
-                'success' => $sent,
-                'message' => $sent ? 'Mensaje enviado' : 'Error al enviar',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * Validar credenciales
+     * Validar credenciales (usado por el Admin)
      */
     public function validateCredentials()
     {
-        $valid = $this->whatsAppService->validateCredentials();
-
+        $valid = $this->evolutionService->validateCredentials();
         return response()->json([
             'valid' => $valid,
-            'phone_number' => config('whatsapp-business.phone_number'),
-            'message' => $valid ? 'Credenciales válidas' : 'Credenciales inválidas',
+            'message' => $valid ? 'Conexión con Evolution API exitosa' : 'No se pudo conectar con Evolution API',
         ]);
     }
 }

@@ -51,10 +51,20 @@ class PrintJob extends Model
     /**
      * Generar referencia única para este trabajo.
      */
-    public static function generateJobReference(): string
+    public static function generateJobReference(?string $filename = null): string
     {
+        $prefix = '';
+        if ($filename) {
+            $nameOnly = pathinfo($filename, PATHINFO_FILENAME);
+            $clean = preg_replace('/[^A-Za-z0-9]/', '', $nameOnly);
+            $prefix = strtoupper(substr($clean, 0, 4)) . '-';
+        }
+
+        $datePart = date('dm'); // Día y Mes (ej: 1405)
+
         do {
-            $reference = strtoupper(substr(md5(uniqid()), 0, 8));
+            $code = strtoupper(substr(md5(uniqid()), 0, 2)); // 2 letras finales para no hacerlo muy largo
+            $reference = $prefix . $datePart . '-' . $code;
         } while (self::where('job_reference', $reference)->exists());
 
         return $reference;

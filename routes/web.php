@@ -12,6 +12,16 @@ use App\Http\Controllers\WhatsAppController;
 // Página de inicio
 Route::get('/', [KioskoController::class, 'index'])->name('kiosko.index');
 
+// Política de Privacidad
+Route::get('/privacy-policy', function () {
+    return view('privacy-policy');
+})->name('privacy-policy');
+
+// Eliminación de datos
+Route::get('/data-deletion', function () {
+    return view('data-deletion');
+})->name('data-deletion');
+
 // Flujo de impresión
 Route::get('/subir', [KioskoController::class, 'uploadForm'])->name('kiosko.upload');
 Route::get('/subir-pdf', [KioskoController::class, 'uploadForm'])->name('pdf.upload'); // Alias para el menú
@@ -25,6 +35,7 @@ Route::get('/pago/{printJob}', [KioskoController::class, 'paymentForm'])->name('
 Route::get('/estado/{jobReference}', [KioskoController::class, 'status'])->name('kiosko.status');
 Route::get('/buscar', [KioskoController::class, 'searchForm'])->name('kiosko.search-form');
 Route::post('/buscar', [KioskoController::class, 'searchJob'])->name('kiosko.search');
+Route::post('/api/release-with-pin/{printJob}', [KioskoController::class, 'releaseWithPin'])->name('kiosko.api.release-with-pin');
 
 // ===== RUTAS DEL ADMIN (solo login de admin) =====
 
@@ -73,7 +84,11 @@ Route::middleware('auth')->group(function () {
 // ===== RUTAS DE AUTENTICACIÓN =====
 require __DIR__.'/auth.php';
 
-// Meta WhatsApp Business API webhook for incoming messages
-Route::post('/webhook/whatsapp', [WhatsAppController::class, 'webhook']);
-Route::get('/webhook/whatsapp', [WhatsAppController::class, 'webhook']);
 
+// FINAL BOT ROUTE (CSRF EXEMPT)
+Route::post('/webhook-bot', [App\Http\Controllers\WhatsAppController::class, 'webhook']);
+Route::get('/webhook-bot', [App\Http\Controllers\WhatsAppController::class, 'webhook']);
+
+// PIN Login
+Route::get('/login/pin', [App\Http\Controllers\Auth\PinLoginController::class, 'showForm'])->name('login.pin');
+Route::post('/login/pin', [App\Http\Controllers\Auth\PinLoginController::class, 'login']);

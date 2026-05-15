@@ -35,7 +35,8 @@ class AdminController extends Controller
             ->get();
 
         $jobs = \App\Models\PrintJob::with('pdfFile')->orderBy('created_at', 'desc')->get();
-        return view('admin.dashboard', compact('stats', 'recentPayments', 'pendingPayments', 'jobs'));
+        $jobs = \App\Models\PrintJob::with('pdfFile')->orderBy('created_at', 'desc')->get();
+        return view('admin.index', compact('stats', 'recentPayments', 'pendingPayments', 'jobs'));
     }
 
     /**
@@ -96,14 +97,27 @@ class AdminController extends Controller
         try {
             $printJob->update([
                 'status' => 'completed',
+                'paid' => true,
                 'printed_at' => now(),
             ]);
 
-            Log::info('Trabajo marcado como impreso', ['job_reference' => $printJob->job_reference]);
+            // IMPORTANTE: Confirmar el pago para que sume al dinero ganado
+            if ($printJob->payment) {
+                $printJob->payment->update(['status' => 'confirmed']);
+            }
+
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Trabajo marcado como completado.']);
+            }
 
             return back()->with('success', 'Trabajo marcado como completado.');
         } catch (\Exception $e) {
             Log::error('Error al marcar trabajo', ['error' => $e->getMessage()]);
+            
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Error al actualizar el trabajo.'], 500);
+            }
+
             return back()->withErrors('Error al actualizar el trabajo.');
         }
     }
@@ -126,9 +140,18 @@ class AdminController extends Controller
 
             Log::info('Trabajo cancelado', ['job_reference' => $printJob->job_reference]);
 
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Trabajo cancelado.']);
+            }
+
             return back()->with('success', 'Trabajo cancelado.');
         } catch (\Exception $e) {
             Log::error('Error al cancelar trabajo', ['error' => $e->getMessage()]);
+
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Error al cancelar el trabajo.'], 500);
+            }
+
             return back()->withErrors('Error al cancelar el trabajo.');
         }
     }
@@ -160,9 +183,18 @@ class AdminController extends Controller
 
             Log::info('Trabajo eliminado definitivamente', ['job_reference' => $printJob->job_reference]);
 
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Trabajo eliminado correctamente.']);
+            }
+
             return redirect()->route('admin.print-jobs')->with('success', 'Trabajo y archivo eliminados correctamente.');
         } catch (\Exception $e) {
             Log::error('Error al eliminar trabajo', ['error' => $e->getMessage()]);
+
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Error al intentar eliminar el trabajo.'], 500);
+            }
+
             return back()->withErrors('Error al intentar eliminar el trabajo.');
         }
     }
@@ -228,7 +260,9 @@ class AdminController extends Controller
             'ready_to_print' => PrintJob::where('status', 'printing')->where('paid', true)->count(),
             'completed' => PrintJob::where('status', 'completed')->count(),
             'cancelled' => PrintJob::where('status', 'cancelled')->count(),
-            'total_revenue' => Payment::where('status', 'confirmed')->sum('amount'),
+            'revenue' => (float) Payment::where('status', 'confirmed')
+                ->whereDate('updated_at', today())
+                ->sum('amount'),
         ]);
     }
 
@@ -256,6 +290,7 @@ class AdminController extends Controller
                 'cost' => $job->cost,
                 'pdf_file' => [
                     'original_name' => $job->pdfFile->original_name,
+                    'pages_count' => $job->pdfFile->pages_count,
                 ],
             ]),
         ]);
@@ -282,7 +317,7 @@ class AdminController extends Controller
     }
 
     /**
-     * Actualizar precios de impresión
+     * Actualizar precios de impresión y persistirlos en .env
      */
     public function updatePrices(Request $request)
     {
@@ -291,22 +326,42 @@ class AdminController extends Controller
             'cost_color' => 'required|numeric|min:0',
         ]);
 
-        // Actualizar el .env (o guardar en BD si prefieres)
         try {
-            // Opción 1: Guardar en config temporal (se recarga al reiniciar)
-            config()->set('printing.cost_bw', $validated['cost_bw']);
-            config()->set('printing.cost_color', $validated['cost_color']);
+            // 1. Actualizar en la memoria actual
+            config(['printing.cost_bw' => $validated['cost_bw']]);
+            config(['printing.cost_color' => $validated['cost_color']]);
 
-            // Opción 2: Si quieres persistencia, crea una tabla de settings
-            // Setting::updateOrCreate(['key' => 'cost_bw'], ['value' => $validated['cost_bw']]);
-            // Setting::updateOrCreate(['key' => 'cost_color'], ['value' => $validated['cost_color']]);
+            // 2. Persistir en el archivo .env
+            $envPath = base_path('.env');
+            if (file_exists($envPath)) {
+                $envContent = file_get_contents($envPath);
+                
+                // Actualizar o añadir PRINT_COST_BW
+                if (str_contains($envContent, 'PRINT_COST_BW=')) {
+                    $envContent = preg_replace('/PRINT_COST_BW=.*/', 'PRINT_COST_BW=' . $validated['cost_bw'], $envContent);
+                } else {
+                    $envContent .= "\nPRINT_COST_BW=" . $validated['cost_bw'];
+                }
 
-            Log::info('Precios actualizados', $validated);
+                // Actualizar o añadir PRINT_COST_COLOR
+                if (str_contains($envContent, 'PRINT_COST_COLOR=')) {
+                    $envContent = preg_replace('/PRINT_COST_COLOR=.*/', 'PRINT_COST_COLOR=' . $validated['cost_color'], $envContent);
+                } else {
+                    $envContent .= "\nPRINT_COST_COLOR=" . $validated['cost_color'];
+                }
 
-            return response()->json(['success' => true, 'message' => 'Precios actualizados']);
+                file_put_contents($envPath, $envContent);
+                
+                // Limpiar caché de configuración para que Laravel lea el nuevo .env
+                \Illuminate\Support\Facades\Artisan::call('config:clear');
+            }
+
+            Log::info('Precios actualizados permanentemente', $validated);
+
+            return response()->json(['success' => true, 'message' => 'Precios actualizados permanentemente']);
         } catch (\Exception $e) {
             Log::error('Error al actualizar precios', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'message' => 'Error al actualizar'], 500);
+            return response()->json(['success' => false, 'message' => 'Error al persistir los precios'], 500);
         }
     }
 }

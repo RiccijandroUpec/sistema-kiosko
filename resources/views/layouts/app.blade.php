@@ -16,7 +16,9 @@
     </head>
     <body class="font-sans antialiased">
         <div class="min-h-screen bg-gray-100">
-            @include('layouts.navigation')
+            @unless(request()->routeIs('admin.*') || request()->routeIs('dashboard') || request()->routeIs('profile.*'))
+                @include('layouts.navigation')
+            @endunless
 
             <!-- Page Heading -->
             @isset($header)
@@ -29,6 +31,7 @@
 
             <!-- Page Content -->
             <main>
+                {{ $slot ?? '' }}
                 @yield('content')
             </main>
         </div>

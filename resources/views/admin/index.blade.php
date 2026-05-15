@@ -1,130 +1,165 @@
-@extends('layouts.app')
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin RickTech - Centro de Control</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; }
+        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(15px); }
+        .stat-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-900 antialiased" x-data="adminPanel()" x-cloak @load="init()">
 
-@section('content')
-<div class="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 py-6 px-4" x-data="adminPanel()" x-cloak @load="init()">
-    <div class="max-w-7xl mx-auto">
-        <!-- Header -->
-        <div class="mb-8 flex justify-between items-center">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900">Panel Administrativo</h1>
-                <p class="text-gray-600 mt-1">Gestión de trabajos y precios</p>
-            </div>
-            <div class="flex gap-2">
-                <button @click="openModal('whatsapp')" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">
-                    📲 WhatsApp
-                </button>
-                <button @click="openModal('settings')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">
-                    ⚙️ Configuración
-                </button>
-            </div>
-        </div>
-
-        <!-- Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
-                <p class="text-gray-600 text-sm font-medium">Pagos Pendientes</p>
-                <p class="text-3xl font-bold text-gray-900 mt-2" x-text="stats.pending || 0"></p>
-                <button @click="openModal('pending')" class="text-red-600 text-sm mt-3 font-medium">Ver →</button>
-            </div>
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-                <p class="text-gray-600 text-sm font-medium">Confirmados</p>
-                <p class="text-3xl font-bold text-gray-900 mt-2" x-text="stats.confirmed || 0"></p>
-            </div>
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-                <p class="text-gray-600 text-sm font-medium">Listos</p>
-                <p class="text-3xl font-bold text-gray-900 mt-2" x-text="stats.ready || 0"></p>
-            </div>
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-                <p class="text-gray-600 text-sm font-medium">Ingresos</p>
-                <p class="text-3xl font-bold text-gray-900 mt-2" x-text="'$' + stats.revenue.toFixed(2)"></p>
-            </div>
-        </div>
-
-        <!-- Jobs Table -->
-        <div class="bg-white rounded-lg shadow">
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 class="text-xl font-bold text-gray-900">Trabajos</h2>
-                <select @change="loadJobs($event.target.value)" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    <option value="">Todos</option>
-                    <option value="pending">Pendiente</option>
-                    <option value="printing">Listo</option>
-                    <option value="completed">Completado</option>
-                </select>
-            </div>
-            <div id="jobsList" class="divide-y divide-gray-200">
-                <div class="p-4 text-center text-gray-500">Cargando...</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: Settings -->
-    <div x-show="modal === 'settings'" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" @click.self="modal = null">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 class="text-xl font-bold text-gray-900 mb-4">Configuración de Precios</h3>
-            <form @submit.prevent="updatePrices()">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Precio B/N por página ($)</label>
-                    <input type="number" step="0.01" min="0" x-model.number="prices.bw" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Precio Color por página ($)</label>
-                    <input type="number" step="0.01" min="0" x-model.number="prices.color" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-700 mb-4">
-                    <p><strong>Ejemplo:</strong> 2 pág B/N × 1 copia = $<span x-text="(prices.bw * 2).toFixed(2)"></span></p>
-                </div>
-                <div class="flex gap-2">
-                    <button type="submit" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium" x-text="saving ? 'Guardando...' : 'Guardar'"></button>
-                    <button type="button" @click="modal = null" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL: Pending Payments -->
-    <div x-show="modal === 'pending'" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" @click.self="modal = null">
-        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-96 overflow-y-auto">
-            <h3 class="text-xl font-bold text-gray-900 mb-4">Pagos Pendientes</h3>
-            <div id="pendingPayments" class="space-y-2">
-                <p class="text-gray-500 text-center py-4">Cargando...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: WhatsApp Business -->
-    <div x-show="modal === 'whatsapp'" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" @click.self="modal = null">
-        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
-            <h3 class="text-xl font-bold text-gray-900 mb-4">WhatsApp Business</h3>
-
-            <div class="mb-4 flex gap-2">
-                <button type="button" @click="validateWhatsApp()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">
-                    Validar credenciales
-                </button>
-                <button type="button" @click="openTestForm = !openTestForm" class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 font-medium">
-                    Enviar prueba
-                </button>
-            </div>
-
-            <div x-show="whatsappResult" class="mb-4 rounded-lg border px-4 py-3 text-sm" :class="whatsappResult.valid ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800'">
-                <p x-text="whatsappResult.message || 'Sin respuesta'"></p>
-                <template x-if="whatsappResult.phone_number">
-                    <p class="mt-1 text-xs opacity-80">Número: <span x-text="whatsappResult.phone_number"></span></p>
-                </template>
-            </div>
-
-            <form x-show="openTestForm" @submit.prevent="sendWhatsAppTest()" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Número destino</label>
-                    <input type="text" x-model="testPhone" placeholder="+593978763955" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+    <!-- Barra de Navegación Premium -->
+    <nav class="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40">
+        <div class="max-w-screen-2xl mx-auto px-6 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
+                    <img src="{{ asset('images/app-icon.png') }}" alt="Logo" class="w-6 h-6 invert">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Mensaje</label>
-                    <textarea x-model="testMessage" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg">Hola, prueba desde el panel admin</textarea>
+                    <h1 class="text-sm font-black text-slate-800 leading-none">RICKTECH</h1>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Admin Dashboard</p>
                 </div>
-                <div class="flex gap-2">
-                    <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium" x-text="sendingTest ? 'Enviando...' : 'Enviar mensaje'"></button>
-                    <button type="button" @click="openTestForm = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cerrar</button>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="hidden md:flex bg-slate-100 p-1 rounded-xl gap-1">
+                    <button @click="openModal('whatsapp')" class="px-3 py-1.5 text-[10px] font-black uppercase tracking-tight text-slate-500 hover:text-emerald-600 transition-colors">WhatsApp</button>
+                    <button @click="openModal('settings')" class="px-3 py-1.5 text-[10px] font-black uppercase tracking-tight text-slate-500 hover:text-indigo-600 transition-colors">Precios</button>
                 </div>
+                <div class="h-8 w-px bg-slate-100 mx-2"></div>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="p-2 text-slate-400 hover:text-red-500 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-screen-2xl mx-auto px-6 py-6 h-[calc(100vh-65px)] flex flex-col gap-6">
+        
+        <!-- Métrica de Resumen -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
+            <div class="stat-card bg-white rounded-3xl p-5 border border-slate-50 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pendientes</p>
+                    <p class="text-2xl font-black text-slate-800" x-text="stats.pending || 0">0</p>
+                </div>
+            </div>
+            <div class="stat-card bg-white rounded-3xl p-5 border border-slate-50 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z"></path></svg>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Listos</p>
+                    <p class="text-2xl font-black text-slate-800" x-text="stats.ready || 0">0</p>
+                </div>
+            </div>
+            <div class="stat-card bg-indigo-600 rounded-3xl p-5 shadow-xl shadow-indigo-100 flex items-center gap-4 text-white">
+                <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-indigo-200 uppercase tracking-widest">Hoy (Confirmado)</p>
+                    <p class="text-2xl font-black" x-text="'$' + (stats.revenue || 0).toFixed(2)">$0.00</p>
+                </div>
+            </div>
+            <div class="stat-card bg-white rounded-3xl p-5 border border-slate-50 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Completados</p>
+                    <p class="text-2xl font-black text-slate-800" x-text="stats.confirmed || 0">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cuerpo Principal -->
+        <div class="flex-1 flex flex-col min-h-0 bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-50 overflow-hidden">
+            <div class="px-8 py-5 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-black text-slate-800 tracking-tight">Registro de Trabajos</h2>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Monitoreo en tiempo real</p>
+                </div>
+                
+                <div class="flex bg-slate-50 p-1 rounded-2xl gap-1">
+                    <button @click="loadJobs('')" class="px-4 py-1.5 text-[10px] font-black uppercase rounded-xl transition-all" :class="!currentFilter ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'">Todos</button>
+                    <button @click="loadJobs('pending')" class="px-4 py-1.5 text-[10px] font-black uppercase rounded-xl transition-all" :class="currentFilter === 'pending' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400'">Pendientes</button>
+                    <button @click="loadJobs('printing')" class="px-4 py-1.5 text-[10px] font-black uppercase rounded-xl transition-all" :class="currentFilter === 'printing' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400'">Listos</button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto custom-scroll px-4">
+                <div id="jobsList" class="divide-y divide-slate-50">
+                    <!-- Contenido dinámico -->
+                    <div class="p-20 text-center text-slate-300 font-bold">Cargando central de datos...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL: Cobro Inteligente -->
+    <div x-show="modal === 'payment'" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" x-transition x-cloak @click.self="modal = null">
+        <div class="bg-white rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden border border-slate-100">
+            <div class="bg-indigo-600 p-6 text-white text-center">
+                <h3 class="text-xl font-black tracking-tight">Registrar Cobro</h3>
+                <p class="text-indigo-200 text-xs font-bold font-mono" x-text="selectedJob?.job_reference"></p>
+            </div>
+            <div class="p-8" x-data="{ cashReceived: 0 }">
+                <div class="bg-slate-50 rounded-2xl p-5 mb-6 border-2 border-dashed border-slate-200 text-center">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total a pagar</span>
+                    <p class="text-4xl font-black text-indigo-600" x-text="'$' + (selectedJob?.cost || 0)"></p>
+                </div>
+                <div class="space-y-4">
+                    <input type="number" step="0.01" x-model.number="cashReceived" 
+                           class="w-full py-4 bg-slate-100 border-none rounded-2xl text-2xl font-black text-slate-800 text-center focus:ring-2 focus:ring-indigo-500"
+                           placeholder="Ingresar efectivo" autofocus>
+                    
+                    <div x-show="cashReceived > (selectedJob?.cost || 0)" class="bg-emerald-50 rounded-2xl p-4 text-center">
+                        <p class="text-emerald-600 text-[10px] font-black uppercase">Cambio</p>
+                        <p class="text-2xl font-black text-emerald-700" x-text="'$' + (cashReceived - (selectedJob?.cost || 0)).toFixed(2)"></p>
+                    </div>
+
+                    <button @click="performAction('confirmar-pago', selectedJob.id, true)" 
+                            class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-center shadow-xl shadow-indigo-100 active:scale-95 transition-all">
+                        CONFIRMAR PAGO
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Precios -->
+    <div x-show="modal === 'settings'" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" x-transition x-cloak @click.self="modal = null">
+        <div class="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full p-8">
+            <h3 class="text-xl font-black text-slate-800 mb-6 tracking-tight">Ajustes de Precios</h3>
+            <form @submit.prevent="updatePrices()" class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">B/N por página</label>
+                    <input type="number" step="0.01" x-model.number="prices.bw" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-800">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Color por página</label>
+                    <input type="number" step="0.01" x-model.number="prices.color" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-800">
+                </div>
+                <button type="submit" class="w-full py-4 bg-slate-800 text-white rounded-2xl font-black shadow-lg" x-text="saving ? 'Guardando...' : 'GUARDAR CAMBIOS'"></button>
             </form>
         </div>
     </div>
@@ -132,176 +167,100 @@
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('adminPanel', () => ({
-            modal: null,
-            stats: { pending: 0, confirmed: 0, ready: 0, revenue: 0 },
-            prices: { bw: 0.05, color: 0.20 },
-            saving: false,
-            whatsappResult: null,
-            openTestForm: false,
-            testPhone: '+593978763955',
-            testMessage: 'Hola, prueba desde el panel admin',
-            sendingTest: false,
+            modal: null, stats: { pending: 0, confirmed: 0, ready: 0, revenue: 0 },
+            prices: { bw: {{ config('printing.cost_bw') }}, color: {{ config('printing.cost_color') }} },
+            saving: false, selectedJob: null, jobs: [], currentFilter: '',
 
             init() {
-                this.loadStats();
-                this.loadJobs();
-                setInterval(() => this.loadStats(), 30000);
+                this.loadStats(); this.loadJobs();
+                setInterval(() => { this.loadStats(); this.loadJobs(this.currentFilter); }, 15000);
             },
 
-            openModal(name) {
-                this.modal = name;
-                if (name === 'pending') {
-                    this.loadPendingPayments();
-                }
-            },
+            openModal(name) { this.modal = name; },
 
             async loadStats() {
-                try {
-                    const res = await fetch('{{ route("admin.api.stats") }}');
-                    this.stats = await res.json();
-                } catch (e) {
-                    console.error('Error:', e);
-                }
+                const res = await fetch('{{ route("admin.api.stats") }}');
+                this.stats = await res.json();
             },
 
             async loadJobs(status = '') {
-                try {
-                    const url = new URL('{{ route("admin.api.jobs") }}', location.origin);
-                    if (status) url.searchParams.set('status', status);
-                    const res = await fetch(url);
-                    const { jobs } = await res.json();
-                    this.renderJobs(jobs);
-                } catch (e) {
-                    console.error('Error:', e);
-                }
+                this.currentFilter = status;
+                const url = new URL('{{ route("admin.api.jobs") }}', location.origin);
+                if (status) url.searchParams.set('status', status);
+                const res = await fetch(url);
+                const data = await res.json();
+                this.jobs = data.jobs;
+                this.renderJobs();
             },
 
-            renderJobs(jobs) {
-                const html = jobs.length ? jobs.map(job => `
-                    <div class="p-4 flex justify-between items-center hover:bg-gray-50">
-                        <div>
-                            <p class="font-medium text-gray-900">${job.job_reference}</p>
-                            <p class="text-sm text-gray-600">${job.pdf_file.original_name}</p>
-                            <p class="text-xs text-gray-500 mt-1">${job.copies} copias • ${job.color_type} • $${job.cost}</p>
+            renderJobs() {
+                const html = this.jobs.length ? this.jobs.map(job => `
+                    <div class="px-6 py-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors group">
+                        <div class="flex items-center gap-4 flex-1">
+                            <div class="w-10 h-10 ${this.statusIconBg(job.status)} rounded-xl flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5 ${this.statusIconColor(job.status)}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <p class="font-black text-slate-800 text-sm tracking-tight">${job.job_reference}</p>
+                                    <span class="px-2 py-0.5 text-[8px] font-black uppercase rounded-full ${this.statusBadge(job.status)}">${this.statusLabel(job.status)}</span>
+                                </div>
+                                <p class="text-[10px] font-bold text-slate-400 truncate max-w-[300px]">${job.pdf_file.original_name}</p>
+                                <p class="text-[9px] font-black text-indigo-600 mt-0.5">${job.copies}x ${job.color_type === 'color' ? 'COLOR' : 'B/N'} • ${job.pdf_file.pages_count} PÁG • $${job.cost}</p>
+                            </div>
                         </div>
-                        <div class="text-right">
-                            <span class="inline-block px-2 py-1 text-xs font-bold rounded ${this.statusColor(job.status)}">${this.statusLabel(job.status)}</span>
-                            ${job.status === 'pending' && !job.paid ? `<button onclick="window.adminData.confirmPayment(${job.id})" class="block mt-2 text-blue-600 text-sm font-medium">Confirmar</button>` : ''}
+                        <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <a href="/admin/trabajos/${job.id}/descargar" target="_blank" class="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            </a>
+                            ${job.status === 'pending' && !job.paid ? `
+                                <button onclick="window.adminData.prepareCheckout(${job.id})" class="px-4 py-2 bg-emerald-500 text-white text-[9px] font-black uppercase rounded-lg shadow-lg shadow-emerald-100 active:scale-95">COBRAR</button>
+                            ` : ''}
+                            ${job.status === 'printing' ? `
+                                <button onclick="window.adminData.performAction('impreso', ${job.id}, true)" class="px-4 py-2 bg-indigo-600 text-white text-[9px] font-black uppercase rounded-lg shadow-lg shadow-indigo-100 active:scale-95">LISTO</button>
+                            ` : ''}
+                            <button onclick="window.adminData.performAction('delete', ${job.id})" class="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
                         </div>
                     </div>
-                `).join('') : '<div class="p-4 text-center text-gray-500">No hay trabajos</div>';
+                `).join('') : '<div class="p-20 text-center text-slate-300 font-bold">No hay trabajos activos</div>';
                 document.getElementById('jobsList').innerHTML = html;
             },
 
-            statusColor(status) {
-                const colors = {
-                    pending: 'bg-yellow-100 text-yellow-800',
-                    printing: 'bg-blue-100 text-blue-800',
-                    completed: 'bg-green-100 text-green-800',
-                    cancelled: 'bg-red-100 text-red-800'
-                };
-                return colors[status] || 'bg-gray-100 text-gray-800';
+            statusBadge(s) { 
+                return { pending: 'bg-amber-100 text-amber-600', printing: 'bg-indigo-100 text-indigo-600', completed: 'bg-emerald-100 text-emerald-600', cancelled: 'bg-red-100 text-red-600' }[s]; 
             },
-
-            statusLabel(status) {
-                const labels = { pending: 'Pendiente', printing: 'Listo', completed: 'Completado', cancelled: 'Cancelado' };
-                return labels[status] || status;
+            statusIconBg(s) { 
+                return { pending: 'bg-amber-50', printing: 'bg-indigo-50', completed: 'bg-emerald-50', cancelled: 'bg-red-50' }[s]; 
             },
+            statusIconColor(s) { 
+                return { pending: 'text-amber-500', printing: 'text-indigo-500', completed: 'text-emerald-500', cancelled: 'text-red-500' }[s]; 
+            },
+            statusLabel(s) { return { pending: 'PAGO PENDIENTE', printing: 'POR IMPRIMIR', completed: 'COMPLETADO', cancelled: 'CANCELADO' }[s]; },
 
-            async loadPendingPayments() {
-                try {
-                    const res = await fetch('{{ route("admin.api.pending-payments") }}');
-                    const { payments } = await res.json();
-                    const html = payments.length ? payments.map(p => `
-                        <div class="p-3 bg-gray-50 rounded flex justify-between items-center">
-                            <div>
-                                <p class="font-medium">${p.reference_code}</p>
-                                <p class="text-sm text-gray-600">$${p.amount}</p>
-                            </div>
-                            <button onclick="window.adminData.confirmPayment(${p.print_job_id})" class="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700">
-                                Confirmar
-                            </button>
-                        </div>
-                    `).join('') : '<p class="text-center text-gray-500 py-4">Sin pagos pendientes</p>';
-                    document.getElementById('pendingPayments').innerHTML = html;
-                } catch (e) {
-                    console.error('Error:', e);
-                }
+            prepareCheckout(jobId) { this.selectedJob = this.jobs.find(j => j.id === jobId); this.modal = 'payment'; },
+
+            async performAction(action, jobId, skipConfirm = false) {
+                let url = action === 'delete' ? `/admin/trabajos/${jobId}` : (action === 'impreso' || action === 'confirmar-pago' ? `/admin/trabajos/${jobId}/impreso` : `/admin/trabajos/${jobId}/cancelar`);
+                if (!skipConfirm && !confirm('¿Ejecutar esta acción?')) return;
+                const res = await fetch(url, { method: action === 'delete' ? 'DELETE' : 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' } });
+                if (res.ok) { this.loadStats(); this.loadJobs(this.currentFilter); this.modal = null; }
             },
 
             async updatePrices() {
                 this.saving = true;
-                try {
-                    const res = await fetch('{{ route("admin.update-prices") }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('[name="csrf-token"]').content
-                        },
-                        body: JSON.stringify(this.prices)
-                    });
-                    const { success } = await res.json();
-                    if (success) {
-                        alert('Precios actualizados');
-                        this.modal = null;
-                    }
-                } catch (e) {
-                    console.error('Error:', e);
-                }
+                const res = await fetch('{{ route("admin.update-prices") }}', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: JSON.stringify({ cost_bw: this.prices.bw, cost_color: this.prices.color })
+                });
+                if (res.ok) { alert('Precios actualizados'); this.modal = null; }
                 this.saving = false;
-            },
-
-            async validateWhatsApp() {
-                try {
-                    const res = await fetch('{{ route("admin.whatsapp.validate-credentials") }}');
-                    this.whatsappResult = await res.json();
-                } catch (e) {
-                    this.whatsappResult = { valid: false, message: 'No se pudo validar la conexión' };
-                    console.error('Error:', e);
-                }
-            },
-
-            async sendWhatsAppTest() {
-                this.sendingTest = true;
-                try {
-                    const res = await fetch('{{ route("admin.whatsapp.test-message") }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('[name="csrf-token"]').content
-                        },
-                        body: JSON.stringify({ phone: this.testPhone, message: this.testMessage })
-                    });
-                    const data = await res.json();
-                    this.whatsappResult = { valid: data.success, message: data.message, phone_number: this.testPhone };
-                } catch (e) {
-                    this.whatsappResult = { valid: false, message: 'No se pudo enviar el mensaje de prueba' };
-                    console.error('Error:', e);
-                }
-                this.sendingTest = false;
-            },
-
-            confirmPayment(jobId) {
-                if (confirm('¿Confirmar pago?')) {
-                    fetch(`/admin/trabajos/${jobId}/confirmar-pago`, {
-                        method: 'POST',
-                        headers: { 'X-CSRF-TOKEN': document.querySelector('[name="csrf-token"]').content }
-                    }).then(() => location.reload());
-                }
             }
         }))
     });
-
-    // Global reference for inline onclick
-    window.adminData = Alpine.store('adminPanel') || window;
-    document.addEventListener('alpine:init', () => {
-        const admin = document.querySelector('[x-data*="adminPanel"]')?.__x?.getUnobservedData?.() || {};
-        window.adminData = admin;
-        window.adminData.confirmPayment = admin.confirmPayment?.bind(admin);
-    });
+    window.adminData = {};
+    document.addEventListener('alpine:initialized', () => { window.adminData = Alpine.$data(document.querySelector('[x-data]')); });
     </script>
-
-    <style>
-    [x-cloak] { display: none !important; }
-    </style>
-@endsection
+</body>
+</html>

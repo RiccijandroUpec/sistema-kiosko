@@ -102,7 +102,7 @@ class KioskoController extends Controller
 
         // Crear trabajo de impresión
         $printJob = PrintJob::create([
-            'job_reference' => PrintJob::generateJobReference(),
+            'job_reference' => PrintJob::generateJobReference($pdf->original_name),
             'pdf_file_id' => $pdf->id,
             'email' => $pdf->email,
             'copies' => (int)$request->copies,
@@ -206,5 +206,40 @@ class KioskoController extends Controller
 
         return response($result->getString())
             ->header('Content-Type', 'image/png');
+    }
+
+    /**
+     * Liberar un trabajo manualmente usando el PIN del administrador.
+     */
+    public function releaseWithPin(Request $request, PrintJob $printJob)
+    {
+        $request->validate([
+            'pin' => 'required|string|digits:4',
+        ]);
+
+        // Buscamos al administrador principal
+        $admin = \App\Models\User::where('email', 'admin@kiosko.com')->first();
+
+        if (!$admin || $admin->pin !== $request->pin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'PIN de administrador incorrecto.'
+            ], 403);
+        }
+
+        // Marcar como pagado y listo para imprimir
+        $printJob->update([
+            'status' => 'printing',
+            'paid' => true
+        ]);
+
+        if ($printJob->payment) {
+            $printJob->payment->update(['status' => 'confirmed']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Trabajo liberado correctamente.'
+        ]);
     }
 }

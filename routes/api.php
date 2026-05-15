@@ -17,3 +17,7 @@ Route::get('/print-jobs/statistics', [PrintJobApiController::class, 'statistics'
 Route::get('/health', function () {
     return response()->json(['status' => 'ok']);
 });
+
+// WhatsApp Webhook (Evolution API)
+Route::post('/whatsapp/webhook', [\App\Http\Controllers\WhatsAppController::class, 'webhook']);
+Route::get('/whatsapp/webhook', [\App\Http\Controllers\WhatsAppController::class, 'webhook']);
