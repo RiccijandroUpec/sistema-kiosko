@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Kiosk;
 use App\Models\PrintJob;
 use App\Models\Payment;
 use Illuminate\Http\Request;
@@ -15,6 +16,8 @@ class AdminController extends Controller
      */
     public function dashboard()
     {
+        $kiosks = Kiosk::orderBy('nombre')->get();
+
         $stats = [
             'pending_payments' => Payment::where('status', 'pending')->count(),
             'confirmed_payments' => Payment::where('status', 'confirmed')->count(),
@@ -22,6 +25,10 @@ class AdminController extends Controller
             'completed' => PrintJob::where('status', 'completed')->count(),
             'cancelled' => PrintJob::where('status', 'cancelled')->count(),
             'total_revenue' => Payment::where('status', 'confirmed')->sum('amount'),
+            'total_kiosks' => $kiosks->count(),
+            'online_kiosks' => $kiosks->where('estado_conexion', 'online')->count(),
+            'maintenance_kiosks' => $kiosks->where('estado_conexion', 'maintenance')->count(),
+            'offline_kiosks' => $kiosks->where('estado_conexion', 'offline')->count(),
         ];
 
         $recentPayments = Payment::with('printJob.pdfFile')
@@ -34,9 +41,16 @@ class AdminController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $jobs = \App\Models\PrintJob::with('pdfFile')->orderBy('created_at', 'desc')->get();
-        $jobs = \App\Models\PrintJob::with('pdfFile')->orderBy('created_at', 'desc')->get();
-        return view('admin.index', compact('stats', 'recentPayments', 'pendingPayments', 'jobs'));
+        $jobs = \App\Models\PrintJob::with('pdfFile', 'kiosk')->orderBy('created_at', 'desc')->get();
+
+        $kioskSummary = [
+            'total' => $kiosks->count(),
+            'online' => $kiosks->where('estado_conexion', 'online')->count(),
+            'maintenance' => $kiosks->where('estado_conexion', 'maintenance')->count(),
+            'offline' => $kiosks->where('estado_conexion', 'offline')->count(),
+        ];
+
+        return view('admin.index', compact('stats', 'recentPayments', 'pendingPayments', 'jobs', 'kiosks', 'kioskSummary'));
     }
 
     /**
@@ -254,6 +268,8 @@ class AdminController extends Controller
      */
     public function apiStats()
     {
+        $kiosks = Kiosk::all();
+
         return response()->json([
             'pending_payments' => Payment::where('status', 'pending')->count(),
             'confirmed_payments' => Payment::where('status', 'confirmed')->count(),
@@ -263,6 +279,10 @@ class AdminController extends Controller
             'revenue' => (float) Payment::where('status', 'confirmed')
                 ->whereDate('updated_at', today())
                 ->sum('amount'),
+            'total_kiosks' => $kiosks->count(),
+            'online_kiosks' => $kiosks->where('estado_conexion', 'online')->count(),
+            'maintenance_kiosks' => $kiosks->where('estado_conexion', 'maintenance')->count(),
+            'offline_kiosks' => $kiosks->where('estado_conexion', 'offline')->count(),
         ]);
     }
 
@@ -288,6 +308,11 @@ class AdminController extends Controller
                 'copies' => $job->copies,
                 'color_type' => $job->color_type,
                 'cost' => $job->cost,
+                'kiosk' => $job->kiosk ? [
+                    'id' => $job->kiosk->id,
+                    'nombre' => $job->kiosk->nombre,
+                    'estado_conexion' => $job->kiosk->estado_conexion,
+                ] : null,
                 'pdf_file' => [
                     'original_name' => $job->pdfFile->original_name,
                     'pages_count' => $job->pdfFile->pages_count,

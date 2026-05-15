@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\PrintJobApiController;
+use App\Http\Controllers\Api\KioskApiController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -21,3 +22,14 @@ Route::get('/health', function () {
 // WhatsApp Webhook (Evolution API)
 Route::post('/whatsapp/webhook', [\App\Http\Controllers\WhatsAppController::class, 'webhook']);
 Route::get('/whatsapp/webhook', [\App\Http\Controllers\WhatsAppController::class, 'webhook']);
+
+// Kiosk API
+Route::prefix('kiosk')->group(function () {
+    Route::post('/authenticate', [KioskApiController::class, 'authenticate']);
+    Route::post('/heartbeat', [KioskApiController::class, 'heartbeat']);
+    Route::get('/jobs/pending', [KioskApiController::class, 'pendingJobs']);
+    Route::get('/jobs/{printJob}', [KioskApiController::class, 'showJob']);
+    Route::get('/jobs/{printJob}/pdf', [KioskApiController::class, 'downloadPdf']);
+    Route::post('/jobs/{printJob}/printing', [KioskApiController::class, 'markPrinting']);
+    Route::post('/jobs/{printJob}/complete', [KioskApiController::class, 'completeJob']);
+});

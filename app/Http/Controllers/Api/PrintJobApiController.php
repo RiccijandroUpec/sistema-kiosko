@@ -61,6 +61,7 @@ class PrintJobApiController extends Controller
         $validated = $request->validate([
             'pdf_file_id' => 'required|exists:pdf_files,id',
             'user_id' => 'required|exists:users,id',
+            'kiosk_id' => 'nullable|exists:kiosks,id',
             'copies' => 'required|integer|min:1',
             'color_type' => 'required|in:bw,color',
             'paper_size' => 'required|in:a4,letter,legal',
@@ -75,6 +76,7 @@ class PrintJobApiController extends Controller
 
         $printJob = PrintJob::create([
             'user_id' => $validated['user_id'],
+            'kiosk_id' => $validated['kiosk_id'] ?? null,
             'pdf_file_id' => $validated['pdf_file_id'],
             'copies' => $validated['copies'],
             'color_type' => $validated['color_type'],

@@ -15,6 +15,7 @@ class PrintJob extends Model
      */
     protected $fillable = [
         'job_reference',
+        'kiosk_id',
         'pdf_file_id',
         'email',
         'copies',
@@ -38,6 +39,11 @@ class PrintJob extends Model
     public function pdfFile(): BelongsTo
     {
         return $this->belongsTo(PdfFile::class);
+    }
+
+    public function kiosk(): BelongsTo
+    {
+        return $this->belongsTo(Kiosk::class);
     }
 
     /**

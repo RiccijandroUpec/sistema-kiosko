@@ -60,8 +60,26 @@
                     </div>
                 </div>
 
+                @if(!empty($defaultKioskLocation))
+                    <div class="rounded-[2rem] border border-indigo-100 bg-indigo-50 p-4 text-[11px] font-bold text-indigo-700">
+                        La asignación automática priorizará la sede: {{ $defaultKioskLocation }}
+                    </div>
+                @endif
+
                 <form action="{{ route('kiosko.create-job', $pdf->id) }}" method="POST" class="space-y-4 bg-white rounded-[2rem] p-5 border border-slate-100 shadow-sm">
                     @csrf
+
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Sede de impresión (kiosko)</label>
+                        <select name="kiosk_id" class="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-3 text-xs font-bold text-slate-800 focus:ring-1 focus:ring-indigo-500">
+                            <option value="">Automático (kiosko online con menos carga)</option>
+                            @foreach($kiosks as $kiosk)
+                                <option value="{{ $kiosk->id }}" @selected(old('kiosk_id', $defaultKioskId ?? '') == $kiosk->id)>
+                                    {{ $kiosk->nombre }}{{ $kiosk->ubicacion ? ' - ' . $kiosk->ubicacion : '' }}{{ $kiosk->estado_conexion ? ' (' . $kiosk->estado_conexion . ')' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
                     
                     <div class="grid grid-cols-2 gap-3">
                         <label class="cursor-pointer group">

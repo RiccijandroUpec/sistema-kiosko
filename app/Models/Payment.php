@@ -14,6 +14,7 @@ class Payment extends Model
      */
     protected $fillable = [
         'print_job_id',
+        'kiosk_id',
         'reference_code',
         'amount',
         'status',
@@ -27,6 +28,11 @@ class Payment extends Model
     public function printJob(): BelongsTo
     {
         return $this->belongsTo(PrintJob::class);
+    }
+
+    public function kiosk(): BelongsTo
+    {
+        return $this->belongsTo(Kiosk::class);
     }
 
     /**

@@ -2,6 +2,26 @@
 
 Un sistema web completo para gestionar la impresión de archivos PDF en un kiosko. Permite a los usuarios subir archivos PDF, calcular el costo de impresión y gestionar trabajos de impresión con un panel de administración para monitorear todas las actividades.
 
+## Arquitectura Separada
+
+Este repositorio seguirá siendo la base del **servidor central** por ahora. La separación física del proyecto quedará organizada dentro de estas subcarpetas:
+
+```text
+central/
+   - servidor Laravel central
+   - admin
+   - WhatsApp
+   - API para kioskos
+
+kiosk-agent/
+   - agente ligero para Windows/Linux
+   - autenticación con token
+   - consulta de trabajos
+   - descarga e impresión de PDFs
+```
+
+La carpeta raíz conserva el backend actual mientras se termina la fase de migración. No muevas todavía el código productivo al agente hasta que la integración esté cerrada.
+
 ## Características Principales
 
 - **Gestión de Usuarios**
@@ -146,6 +166,8 @@ php artisan serve
 ## Estructura del Proyecto
 
 ```
+├── central/                  # Servidor central separado por carpeta
+├── kiosk-agent/              # Agente local del kiosko
 ├── app/
 │   ├── Console/              # Comandos personalizados
 │   ├── Http/

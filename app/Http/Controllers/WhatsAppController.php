@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Kiosk;
 use App\Models\PdfFile;
 use App\Models\PrintJob;
 use App\Models\Payment;
 use App\Services\EvolutionService;
 use App\Services\DeepseekService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Smalot\PdfParser\Parser;
@@ -92,6 +94,31 @@ class WhatsAppController extends Controller
      */
     protected function handleTextMessage(string $from, string $text)
     {
+        $matchedKiosk = $this->captureKioskContextFromText($from, $text);
+
+        if ($matchedKiosk) {
+            $message = "✅ Sede detectada: *{$matchedKiosk->nombre}*";
+            if (!empty($matchedKiosk->ubicacion)) {
+                $message .= " ({$matchedKiosk->ubicacion})";
+            }
+            $message .= "\n\nAhora envíame tu PDF y lo asignaré automáticamente a esa sede.";
+
+            $this->evolutionService->sendMessage($from, $message);
+            return;
+        }
+
+        $state = $this->getSelectionState($from);
+
+        if ($state && ($state['step'] ?? null) === 'awaiting_kiosk_selection') {
+            $this->handleKioskSelection($from, $text, $state);
+            return;
+        }
+
+        if ($state && ($state['step'] ?? null) === 'awaiting_print_config') {
+            $this->handlePrintConfigMessage($from, $text, $state);
+            return;
+        }
+
         // Obtener respuesta de la IA (Deepseek)
         Log::info('Asking AI...', ['text' => $text]);
         $aiResponse = $this->deepseekService->chat($text);
@@ -109,47 +136,7 @@ class WhatsAppController extends Controller
                 $lastPdf = PdfFile::where('email', $from)->orderBy('created_at', 'desc')->first();
 
                 if ($lastPdf) {
-                    $copies = $config['copies'] ?? 1;
-                    $colorType = $config['color_type'] ?? 'bw';
-
-                    $costBW = config('printing.cost_bw', 0.05);
-                    $costColor = config('printing.cost_color', 0.20);
-                    $costPerPage = $colorType === 'color' ? $costColor : $costBW;
-                    $totalCost = $lastPdf->pages_count * $copies * $costPerPage;
-
-                    // Crear Trabajo de Impresión
-                    $printJob = PrintJob::create([
-                        'job_reference' => PrintJob::generateJobReference($lastPdf->original_name),
-                        'pdf_file_id' => $lastPdf->id,
-                        'email' => $from,
-                        'copies' => $copies,
-                        'color_type' => $colorType,
-                        'paper_size' => 'a4',
-                        'orientation' => 'portrait',
-                        'cost' => $totalCost,
-                        'status' => 'pending',
-                        'paid' => false,
-                    ]);
-
-                    // Crear Registro de Pago
-                    $payment = Payment::create([
-                        'print_job_id' => $printJob->id,
-                        'reference_code' => Payment::generateReferenceCode(),
-                        'amount' => $totalCost,
-                        'status' => 'pending',
-                    ]);
-
-                    // Limpiar el JSON de la respuesta para el usuario
-                    $cleanResponse = trim(preg_replace('/\{.*\}/s', '', $aiResponse));
-                    
-                    $this->evolutionService->sendMessage($from, $cleanResponse);
-                    $this->evolutionService->sendMessage($from, 
-                        "✅ ¡Impresión configurada!\n\n" .
-                        "📍 Ref: *{$printJob->job_reference}*\n" .
-                        "💰 Total: *${$totalCost}*\n" .
-                        "📝 Detalle: {$copies} copias • " . ($colorType === 'color' ? 'COLOR' : 'B/N') . "\n\n" .
-                        "Puedes pagar usando el código QR en el kiosko."
-                    );
+                    $this->promptForKioskSelection($from, $lastPdf, $this->getKioskContext($from));
                     return;
                 }
             }
@@ -204,19 +191,255 @@ class WhatsAppController extends Controller
                 'file_size' => strlen($fileContent) / 1024,
             ]);
 
-            // Enviar respuesta con link
-            $configLink = route('kiosko.configure', $pdfFile->id);
-            
-            $this->evolutionService->sendMessage(
-                $from,
-                "📄 ¡He recibido tu archivo! *{$fileName}* ({$pages} páginas).\n\n" .
-                "Dime cómo quieres imprimirlo (ej: 'Quiero 3 copias a color') o usa este link para configurar: \n{$configLink}"
-            );
+            $this->promptForKioskSelection($from, $pdfFile, $this->getKioskContext($from));
 
         } catch (\Exception $e) {
             Log::error('Error processing PDF from Evolution', ['error' => $e->getMessage()]);
             $this->evolutionService->sendMessage($from, "No pude procesar ese PDF. Asegúrate de que no tenga contraseña.");
         }
+    }
+
+    protected function promptForKioskSelection(string $from, PdfFile $pdfFile, ?Kiosk $preferredKiosk = null): void
+    {
+        $kiosks = Kiosk::query()->orderBy('nombre')->get();
+
+        if ($kiosks->isEmpty()) {
+            $this->evolutionService->sendMessage($from, "📄 Recibí tu PDF, pero todavía no hay kioskos registrados para asignarlo.");
+            return;
+        }
+
+        if ($preferredKiosk) {
+            Cache::put($this->selectionStateKey($from), [
+                'step' => 'awaiting_print_config',
+                'pdf_id' => $pdfFile->id,
+                'kiosk_id' => $preferredKiosk->id,
+            ], now()->addMinutes(20));
+
+            $preferredMessage = "✅ PDF recibido para la sede *{$preferredKiosk->nombre}*";
+            if (!empty($preferredKiosk->ubicacion)) {
+                $preferredMessage .= " ({$preferredKiosk->ubicacion})";
+            }
+            $preferredMessage .= "\n\nAhora dime cómo quieres imprimirlo. Ejemplos: '3 copias a color' o '2 copias blanco y negro'.";
+
+            $this->evolutionService->sendMessage($from, $preferredMessage);
+            return;
+        }
+
+        Cache::put($this->selectionStateKey($from), [
+            'step' => 'awaiting_kiosk_selection',
+            'pdf_id' => $pdfFile->id,
+        ], now()->addMinutes(20));
+
+        $this->evolutionService->sendMessage($from, $this->buildKioskPrompt($kiosks));
+    }
+
+    protected function handleKioskSelection(string $from, string $text, array $state): void
+    {
+        $pdfFile = PdfFile::find($state['pdf_id'] ?? null);
+        $kiosks = Kiosk::query()->orderBy('nombre')->get();
+        $kiosk = $this->resolveKioskSelection($text, $kiosks);
+
+        if (!$pdfFile || $kiosks->isEmpty()) {
+            $this->clearSelectionState($from);
+            $this->evolutionService->sendMessage($from, "No pude recuperar el PDF o ya no hay kioskos disponibles. Vuelve a enviar el archivo.");
+            return;
+        }
+
+        if (!$kiosk) {
+            $this->evolutionService->sendMessage($from, $this->buildKioskPrompt($kiosks));
+            return;
+        }
+
+        Cache::put($this->selectionStateKey($from), [
+            'step' => 'awaiting_print_config',
+            'pdf_id' => $pdfFile->id,
+            'kiosk_id' => $kiosk->id,
+        ], now()->addMinutes(20));
+
+        $this->evolutionService->sendMessage($from, "✅ Sede seleccionada: *{$kiosk->nombre}*\n\nAhora dime cómo quieres imprimirlo. Ejemplos: '3 copias a color' o '2 copias blanco y negro'.");
+    }
+
+    protected function handlePrintConfigMessage(string $from, string $text, array $state): void
+    {
+        $pdfFile = PdfFile::find($state['pdf_id'] ?? null);
+        $kiosk = Kiosk::find($state['kiosk_id'] ?? null);
+
+        if (!$pdfFile || !$kiosk) {
+            $this->clearSelectionState($from);
+            $this->evolutionService->sendMessage($from, "No pude continuar con la configuración. Vuelve a enviar el PDF.");
+            return;
+        }
+
+        Log::info('Asking AI for print config...', ['text' => $text]);
+        $aiResponse = $this->deepseekService->chat($text);
+        Log::info('Print config AI response', ['response' => $aiResponse]);
+
+        if (!preg_match('/\{.*\}/s', $aiResponse, $matches)) {
+            $this->evolutionService->sendMessage($from, "Todavía necesito que me indiques copias, color y demás opciones de impresión.");
+            return;
+        }
+
+        $data = json_decode($matches[0], true);
+
+        if (!isset($data['config'])) {
+            $this->evolutionService->sendMessage($from, "No entendí la configuración. Intenta de nuevo con algo como '3 copias a color'.");
+            return;
+        }
+
+        $this->createPrintJobFromConfig($pdfFile, $from, $data['config'], $kiosk);
+    }
+
+    protected function createPrintJobFromConfig(PdfFile $lastPdf, string $from, array $config, ?Kiosk $kiosk): void
+    {
+        $copies = max(1, (int) ($config['copies'] ?? 1));
+        $colorType = ($config['color_type'] ?? 'bw') === 'color' ? 'color' : 'bw';
+
+        $costBW = config('printing.cost_bw', 0.05);
+        $costColor = config('printing.cost_color', 0.20);
+        $costPerPage = $colorType === 'color' ? $costColor : $costBW;
+        $totalCost = $lastPdf->pages_count * $copies * $costPerPage;
+
+        $printJob = PrintJob::create([
+            'job_reference' => PrintJob::generateJobReference($lastPdf->original_name),
+            'kiosk_id' => $kiosk?->id,
+            'pdf_file_id' => $lastPdf->id,
+            'email' => $from,
+            'copies' => $copies,
+            'color_type' => $colorType,
+            'paper_size' => 'a4',
+            'orientation' => 'portrait',
+            'cost' => $totalCost,
+            'status' => 'pending',
+            'paid' => false,
+        ]);
+
+        Payment::create([
+            'print_job_id' => $printJob->id,
+            'kiosk_id' => $kiosk?->id,
+            'reference_code' => Payment::generateReferenceCode(),
+            'amount' => $totalCost,
+            'status' => 'pending',
+        ]);
+
+        $this->clearSelectionState($from);
+
+        $kioskName = $kiosk?->nombre ?? 'la sede seleccionada';
+        $this->evolutionService->sendMessage($from, "✅ ¡Impresión configurada para {$kioskName}!\n\n" .
+            "📍 Ref: *{$printJob->job_reference}*\n" .
+            "💰 Total: *$" . number_format($totalCost, 2, '.', '') . "*\n" .
+            "📝 Detalle: {$copies} copias • " . ($colorType === 'color' ? 'COLOR' : 'B/N') . "\n\n" .
+            "Puedes pagar usando el código QR en el kiosko.");
+    }
+
+    protected function resolveKioskSelection(string $text, $kiosks): ?Kiosk
+    {
+        $cleanText = trim(mb_strtolower($text));
+
+        if ($cleanText === '') {
+            return null;
+        }
+
+        if (ctype_digit($cleanText)) {
+            $position = (int) $cleanText;
+            $byPosition = $kiosks->values()->get($position - 1);
+            if ($byPosition) {
+                return $byPosition;
+            }
+
+            return Kiosk::find($position);
+        }
+
+        foreach ($kiosks as $kiosk) {
+            $haystack = mb_strtolower(trim($kiosk->nombre . ' ' . ($kiosk->ubicacion ?? '')));
+            if (str_contains($haystack, $cleanText)) {
+                return $kiosk;
+            }
+        }
+
+        return null;
+    }
+
+    protected function buildKioskPrompt($kiosks): string
+    {
+        $lines = $kiosks->values()->map(function (Kiosk $kiosk, int $index) {
+            $position = $index + 1;
+            $location = $kiosk->ubicacion ? " - {$kiosk->ubicacion}" : '';
+            return "{$position}. {$kiosk->nombre}{$location}";
+        })->implode("\n");
+
+        return "📄 ¡He recibido tu archivo!\n\nAhora dime en qué sede estás:\n{$lines}\n\nResponde con el número o el nombre de la sede.";
+    }
+
+    protected function selectionStateKey(string $from): string
+    {
+        return 'whatsapp:kiosk-selection:' . $from;
+    }
+
+    protected function kioskContextKey(string $from): string
+    {
+        return 'whatsapp:kiosk-context:' . $from;
+    }
+
+    protected function captureKioskContextFromText(string $from, string $text): ?Kiosk
+    {
+        $normalized = mb_strtolower(trim($text));
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (!preg_match('/\b(estoy en|estoy|sede|kiosko|kiosk)\b/u', $normalized)) {
+            return null;
+        }
+
+        foreach (Kiosk::query()->get() as $kiosk) {
+            $haystack = mb_strtolower(trim($kiosk->nombre . ' ' . ($kiosk->ubicacion ?? '')));
+            if ($haystack !== '' && str_contains($normalized, $haystack)) {
+                Cache::put($this->kioskContextKey($from), $kiosk->id, now()->addHours(12));
+                return $kiosk;
+            }
+        }
+
+        return null;
+    }
+
+    protected function getKioskContext(string $from): ?Kiosk
+    {
+        $kioskId = Cache::get($this->kioskContextKey($from));
+
+        if (!$kioskId) {
+            return null;
+        }
+
+        return Kiosk::find($kioskId);
+    }
+
+    protected function getSelectionState(string $from): ?array
+    {
+        $state = Cache::get($this->selectionStateKey($from));
+        return is_array($state) ? $state : null;
+    }
+
+    protected function clearSelectionState(string $from): void
+    {
+        Cache::forget($this->selectionStateKey($from));
+    }
+
+    public function sendTestMessage(Request $request)
+    {
+        $validated = $request->validate([
+            'phone' => 'required|string',
+            'message' => 'nullable|string',
+        ]);
+
+        $sent = $this->evolutionService->sendMessage(
+            $validated['phone'],
+            $validated['message'] ?? 'Prueba de conexión del sistema central de kioskos.'
+        );
+
+        return response()->json([
+            'success' => (bool) $sent,
+        ]);
     }
 
     /**

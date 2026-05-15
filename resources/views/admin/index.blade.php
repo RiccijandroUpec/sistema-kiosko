@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin RickTech - Centro de Control</title>
+    <title>RickTech Central - Torre de Control</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -28,8 +28,8 @@
                     <img src="{{ asset('images/app-icon.png') }}" alt="Logo" class="w-6 h-6 invert">
                 </div>
                 <div>
-                    <h1 class="text-sm font-black text-slate-800 leading-none">RICKTECH</h1>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Admin Dashboard</p>
+                    <h1 class="text-sm font-black text-slate-800 leading-none">RICKTECH CENTRAL</h1>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Torre de Control Multi-Kiosko</p>
                 </div>
             </div>
 
@@ -37,6 +37,7 @@
                 <div class="hidden md:flex bg-slate-100 p-1 rounded-xl gap-1">
                     <button @click="openModal('whatsapp')" class="px-3 py-1.5 text-[10px] font-black uppercase tracking-tight text-slate-500 hover:text-emerald-600 transition-colors">WhatsApp</button>
                     <button @click="openModal('settings')" class="px-3 py-1.5 text-[10px] font-black uppercase tracking-tight text-slate-500 hover:text-indigo-600 transition-colors">Precios</button>
+                    <a href="{{ route('admin.kiosks.index') }}" class="px-3 py-1.5 text-[10px] font-black uppercase tracking-tight text-slate-500 hover:text-slate-900 transition-colors">Kioskos</a>
                 </div>
                 <div class="h-8 w-px bg-slate-100 mx-2"></div>
                 <form method="POST" action="{{ route('logout') }}">
@@ -50,9 +51,24 @@
     </nav>
 
     <main class="max-w-screen-2xl mx-auto px-6 py-6 h-[calc(100vh-65px)] flex flex-col gap-6">
+
+        <!-- Encabezado de Red -->
+        <div class="bg-slate-900 rounded-[2rem] p-6 text-white shadow-2xl shadow-slate-200/50 border border-slate-800/40">
+            <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+                <div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Central de Operaciones</p>
+                    <h2 class="text-2xl md:text-4xl font-black tracking-tight mt-2">Todos los kioskos reportan aquí, el central coordina y la sede imprime.</h2>
+                    <p class="text-sm text-slate-300 mt-3 max-w-3xl">Este panel muestra la salud de la red, el volumen de trabajos y el estado de cada terminal conectada.</p>
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                    <a href="{{ route('admin.kiosks.index') }}" class="px-4 py-2 rounded-xl bg-white text-slate-900 text-xs font-black uppercase tracking-widest">Gestionar kioskos</a>
+                    <a href="{{ route('admin.statistics') }}" class="px-4 py-2 rounded-xl bg-slate-800 text-white text-xs font-black uppercase tracking-widest border border-slate-700">Ver estadísticas</a>
+                </div>
+            </div>
+        </div>
         
         <!-- Métrica de Resumen -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4 shrink-0">
             <div class="stat-card bg-white rounded-3xl p-5 border border-slate-50 shadow-sm flex items-center gap-4">
                 <div class="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -89,14 +105,83 @@
                     <p class="text-2xl font-black text-slate-800" x-text="stats.confirmed || 0">0</p>
                 </div>
             </div>
+            <div class="stat-card bg-white rounded-3xl p-5 border border-slate-50 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-slate-100 text-slate-700 rounded-2xl flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 17l4 4 4-4m-4 4V3"></path></svg>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kioskos Totales</p>
+                    <p class="text-2xl font-black text-slate-800" x-text="stats.total_kiosks || 0">0</p>
+                </div>
+            </div>
+            <div class="stat-card bg-white rounded-3xl p-5 border border-slate-50 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kioskos Online</p>
+                    <p class="text-2xl font-black text-slate-800" x-text="stats.online_kiosks || 0">0</p>
+                </div>
+            </div>
+            <div class="stat-card bg-white rounded-3xl p-5 border border-slate-50 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86l-7.4 12.75A2 2 0 004.6 19h14.8a2 2 0 001.71-3.39l-7.4-12.75a2 2 0 00-3.42 0z"></path></svg>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mantenimiento</p>
+                    <p class="text-2xl font-black text-slate-800" x-text="stats.maintenance_kiosks || 0">0</p>
+                </div>
+            </div>
+            <div class="stat-card bg-white rounded-3xl p-5 border border-slate-50 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-1.414 1.414M6.343 17.657l-1.414 1.414m12.021 0l-1.414-1.414M6.343 6.343L4.929 4.929M12 8v4m0 4h.01M3 12a9 9 0 1018 0 9 9 0 00-18 0z"></path></svg>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Offline</p>
+                    <p class="text-2xl font-black text-slate-800" x-text="stats.offline_kiosks || 0">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estado de sedes -->
+        <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-50 p-6">
+            <div class="flex items-center justify-between gap-4 mb-5">
+                <div>
+                    <h3 class="text-lg font-black text-slate-800 tracking-tight">Estado de Sedes</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cada terminal solo imprime, el central coordina</p>
+                </div>
+                <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">{{ $kioskSummary['online'] ?? 0 }} online / {{ $kioskSummary['total'] ?? 0 }} total</div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                @forelse($kiosks as $kiosk)
+                    <div class="rounded-2xl border border-slate-100 p-4 flex items-start justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="w-2.5 h-2.5 rounded-full {{ $kiosk->estado_conexion === 'online' ? 'bg-emerald-500' : ($kiosk->estado_conexion === 'maintenance' ? 'bg-amber-500' : 'bg-red-500') }}"></span>
+                                <h4 class="font-black text-slate-800">{{ $kiosk->nombre }}</h4>
+                            </div>
+                            <p class="text-xs text-slate-500">{{ $kiosk->ubicacion ?? 'Sin ubicación' }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-widest mt-2 text-slate-400">{{ $kiosk->estado_conexion }}</p>
+                        </div>
+                        <div class="text-right text-xs text-slate-500">
+                            <div class="font-black text-slate-800">{{ $kiosk->print_jobs_count ?? $kiosk->printJobs->count() ?? 0 }}</div>
+                            <div>trabajos</div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="col-span-full rounded-2xl border border-dashed border-slate-200 p-8 text-center text-slate-400 text-sm">
+                        Todavía no hay kioskos registrados.
+                    </div>
+                @endforelse
+            </div>
         </div>
 
         <!-- Cuerpo Principal -->
         <div class="flex-1 flex flex-col min-h-0 bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-50 overflow-hidden">
             <div class="px-8 py-5 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
-                    <h2 class="text-lg font-black text-slate-800 tracking-tight">Registro de Trabajos</h2>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Monitoreo en tiempo real</p>
+                    <h2 class="text-lg font-black text-slate-800 tracking-tight">Cola Central de Impresión</h2>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Trabajos enviados por todas las sucursales</p>
                 </div>
                 
                 <div class="flex bg-slate-50 p-1 rounded-2xl gap-1">
@@ -205,7 +290,7 @@
                                     <p class="font-black text-slate-800 text-sm tracking-tight">${job.job_reference}</p>
                                     <span class="px-2 py-0.5 text-[8px] font-black uppercase rounded-full ${this.statusBadge(job.status)}">${this.statusLabel(job.status)}</span>
                                 </div>
-                                <p class="text-[10px] font-bold text-slate-400 truncate max-w-[300px]">${job.pdf_file.original_name}</p>
+                                <p class="text-[10px] font-bold text-slate-400 truncate max-w-[300px]">${job.pdf_file.original_name} ${job.kiosk ? '• ' + job.kiosk.nombre : ''}</p>
                                 <p class="text-[9px] font-black text-indigo-600 mt-0.5">${job.copies}x ${job.color_type === 'color' ? 'COLOR' : 'B/N'} • ${job.pdf_file.pages_count} PÁG • $${job.cost}</p>
                             </div>
                         </div>

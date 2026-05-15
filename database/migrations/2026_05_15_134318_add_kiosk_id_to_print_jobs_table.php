@@ -12,7 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('print_jobs', function (Blueprint $table) {
-            //
+            $table->foreignId('kiosk_id')
+                ->nullable()
+                ->after('pdf_file_id')
+                ->constrained('kiosks')
+                ->nullOnDelete();
         });
     }
 
@@ -22,7 +26,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('print_jobs', function (Blueprint $table) {
-            //
+            $table->dropConstrainedForeignId('kiosk_id');
         });
     }
 };

@@ -1,16 +1,22 @@
 <?php
 
 use App\Http\Controllers\KioskoController;
+use App\Http\Controllers\KioskPanelAuthController;
+use App\Http\Controllers\KioskPanelController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\WhatsAppController;
+use App\Http\Controllers\Admin\KioskController as AdminKioskController;
 
 // ===== RUTAS PÚBLICAS DEL KIOSKO =====
 
 // Página de inicio
 Route::get('/', [KioskoController::class, 'index'])->name('kiosko.index');
+
+// Vista previa pública del panel central para demostración local
+Route::get('/central-preview', [AdminController::class, 'dashboard'])->name('central.preview');
 
 // Política de Privacidad
 Route::get('/privacy-policy', function () {
@@ -27,6 +33,7 @@ Route::get('/subir', [KioskoController::class, 'uploadForm'])->name('kiosko.uplo
 Route::get('/subir-pdf', [KioskoController::class, 'uploadForm'])->name('pdf.upload'); // Alias para el menú
 Route::post('/subir', [KioskoController::class, 'uploadPdf'])->name('kiosko.upload-pdf');
 Route::get('/whatsapp-qr', [KioskoController::class, 'generateQr'])->name('kiosko.whatsapp-qr');
+Route::get('/kioskos/{kiosk}/whatsapp-qr', [KioskoController::class, 'generateKioskQr'])->name('kiosko.whatsapp-qr.kiosk');
 
 Route::get('/configurar/{pdf}', [KioskoController::class, 'configureForm'])->name('kiosko.configure');
 Route::post('/crear-trabajo/{pdf}', [KioskoController::class, 'createPrintJob'])->name('kiosko.create-job');
@@ -36,6 +43,17 @@ Route::get('/estado/{jobReference}', [KioskoController::class, 'status'])->name(
 Route::get('/buscar', [KioskoController::class, 'searchForm'])->name('kiosko.search-form');
 Route::post('/buscar', [KioskoController::class, 'searchJob'])->name('kiosko.search');
 Route::post('/api/release-with-pin/{printJob}', [KioskoController::class, 'releaseWithPin'])->name('kiosko.api.release-with-pin');
+
+// ===== PANEL LOCAL POR KIOSKO (PIN) =====
+Route::get('/kiosko/panel/login', [KioskPanelAuthController::class, 'showLoginForm'])->name('kiosk.panel.login.form');
+Route::post('/kiosko/panel/login', [KioskPanelAuthController::class, 'login'])->name('kiosk.panel.login.submit');
+
+Route::middleware('kiosk.pin')->group(function () {
+    Route::get('/kiosko/panel', [KioskPanelController::class, 'dashboard'])->name('kiosk.panel.dashboard');
+    Route::post('/kiosko/panel/logout', [KioskPanelAuthController::class, 'logout'])->name('kiosk.panel.logout');
+    Route::post('/kiosko/panel/trabajos/{printJob}/impreso', [KioskPanelController::class, 'markAsPrinted'])->name('kiosk.panel.mark-printed');
+    Route::post('/kiosko/panel/trabajos/{printJob}/cancelar', [KioskPanelController::class, 'cancelJob'])->name('kiosk.panel.cancel-job');
+});
 
 // ===== RUTAS DEL ADMIN (solo login de admin) =====
 
@@ -48,6 +66,14 @@ Route::middleware('auth')->group(function () {
     // Dashboard admin unificado
     Route::get('/admin', [AdminController::class, 'dashboard'])->name('admin.dashboard');
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+
+    // Gestión de kioskos
+    Route::get('/admin/kioskos', [AdminKioskController::class, 'index'])->name('admin.kiosks.index');
+    Route::get('/admin/kioskos/{kiosk}/qr', [AdminKioskController::class, 'printableQr'])->name('admin.kiosks.qr');
+    Route::get('/admin/kioskos/{kiosk}/qr.pdf', [AdminKioskController::class, 'printableQrPdf'])->name('admin.kiosks.qr-pdf');
+    Route::post('/admin/kioskos', [AdminKioskController::class, 'store'])->name('admin.kiosks.store');
+    Route::patch('/admin/kioskos/{kiosk}', [AdminKioskController::class, 'update'])->name('admin.kiosks.update');
+    Route::delete('/admin/kioskos/{kiosk}', [AdminKioskController::class, 'destroy'])->name('admin.kiosks.destroy');
 
     // APIs para el panel admin
     Route::get('/admin/api/stats', [AdminController::class, 'apiStats'])->name('admin.api.stats');
