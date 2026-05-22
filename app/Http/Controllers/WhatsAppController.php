@@ -62,6 +62,21 @@ class WhatsAppController extends Controller
                 return response()->json(['status' => 'ignored']);
             }
 
+            // Filtrar mensajes antiguos (evita procesar mensajes de pruebas anteriores)
+            $messageTimestamp = $data['messageTimestamp'] ?? now()->timestamp;
+            $messageTtlMinutes = (int) env('WEBHOOK_MESSAGE_TTL_MINUTES', 5);
+            $messageTime = \Carbon\Carbon::createFromTimestamp($messageTimestamp);
+
+            if ($messageTime->diffInMinutes(now()) > $messageTtlMinutes) {
+                Log::info('Mensaje rechazado por antiguo', [
+                    'from' => explode('@', $fromJid)[0],
+                    'timestamp' => $messageTime->toDateTimeString(),
+                    'age_minutes' => $messageTime->diffInMinutes(now()),
+                    'ttl_minutes' => $messageTtlMinutes,
+                ]);
+                return response()->json(['status' => 'ignored_old_message']);
+            }
+
             $from = explode('@', $fromJid)[0];
 
             // 1. Mensaje de Texto

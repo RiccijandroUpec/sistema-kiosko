@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Runtime data (do not commit)
+evolution_data/
+evolution_db_data/
