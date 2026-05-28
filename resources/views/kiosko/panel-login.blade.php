@@ -37,7 +37,7 @@
                     <option value="">Seleccionar kiosko</option>
                     @foreach($kiosks as $kiosk)
                         <option value="{{ $kiosk->id }}" @selected(old('kiosk_id') == $kiosk->id)>
-                            {{ $kiosk->nombre }}{{ $kiosk->ubicacion ? ' - ' . $kiosk->ubicacion : '' }}
+                            {{ $kiosk->nombre_comercial }}
                         </option>
                     @endforeach
                 </select>

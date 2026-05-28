@@ -31,7 +31,7 @@ class PinLoginController extends Controller
         if ($user) {
             Auth::login($user, true);
             $request->session()->regenerate();
-            return redirect()->intended(route('admin.dashboard'));
+            return redirect()->intended('/admin');
         }
 
         return back()->withErrors([

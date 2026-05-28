@@ -1,8 +1,10 @@
 import http from 'node:http';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { state, log } from './state.js';
 import { config } from './config.js';
 
-function renderPage() {
+function renderAdminPage() {
   const logsHtml = state.recentLogs.length
     ? state.recentLogs.map((entry) => `
         <div class="log ${entry.level}">
@@ -17,7 +19,7 @@ function renderPage() {
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>Kiosk Agent</title>
+      <title>Kiosk Agent - Admin</title>
       <style>
         :root { color-scheme: dark; }
         body { margin: 0; font-family: Inter, system-ui, sans-serif; background: linear-gradient(135deg, #0f172a, #111827 45%, #1f2937); color: #e5e7eb; }
@@ -48,13 +50,14 @@ function renderPage() {
     <body>
       <div class="wrap">
         <div class="card">
-          <div class="pill">Interfaz local del kiosko</div>
+          <div class="pill">Consola de Administración Local</div>
           <h1>${escapeHtml(state.kioskName || config.kioskName || 'Kiosk Agent')}</h1>
           <div class="muted">Este panel sirve para ver el estado del agente sin abrir la consola.</div>
           <div class="buttons">
             <button onclick="testConnection()">Probar conexión</button>
             <button class="secondary" onclick="location.reload()">Actualizar</button>
             <a class="btn secondary" href="/api/state" target="_blank">Ver JSON</a>
+            <a class="btn secondary" href="/" target="_self">Pantalla de Impresión</a>
           </div>
           <div class="stats">
             <div class="stat"><div class="label">Estado</div><div class="value">${escapeHtml(state.status)}</div></div>
@@ -67,7 +70,7 @@ function renderPage() {
           </div>
         </div>
 
-        <div class="card">
+        <div class="card" style="margin-top: 20px;">
           <h2 style="margin-top:0">Actividad reciente</h2>
           <div class="logs">${logsHtml}</div>
         </div>
@@ -98,18 +101,64 @@ export function startWebPanel({ onTestConnection }) {
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
+    // Serve local touchscreen interface at root
     if (url.pathname === '/' || url.pathname === '/index.html') {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(renderPage());
+      try {
+        const filePath = path.join(config.rootDir, 'public', 'index.html');
+        const content = await fs.readFile(filePath, 'utf8');
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(content);
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to load index.html' }));
+      }
       return;
     }
 
+    // Serve admin dashboard at /admin
+    if (url.pathname === '/admin' || url.pathname === '/admin.html') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(renderAdminPage());
+      return;
+    }
+
+    // JSON Kiosk State
     if (url.pathname === '/api/state') {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(state, null, 2));
       return;
     }
 
+    // Fetch order details from central backend
+    if (url.pathname === '/api/order-details') {
+      const orderId = url.searchParams.get('id');
+      if (!orderId) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, message: 'Falta parametro ID' }));
+        return;
+      }
+
+      try {
+        const response = await fetch(`${config.centralUrl}/api/kiosk/jobs/${orderId}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'X-Kiosk-Token': config.kioskApiToken,
+          }
+        });
+
+        const text = await response.text();
+        res.writeHead(response.status, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(text);
+      } catch (err) {
+        log(`Error al consultar orden ${orderId} en backend: ${err.message}`, 'error');
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, message: err.message }));
+      }
+      return;
+    }
+
+    // Test connection action
     if (url.pathname === '/api/test-connection' && req.method === 'POST') {
       try {
         const result = await onTestConnection();

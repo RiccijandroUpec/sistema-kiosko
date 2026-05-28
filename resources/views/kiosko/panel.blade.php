@@ -4,7 +4,7 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-            <h1 class="text-2xl font-black text-slate-900">Panel de {{ $kiosk->nombre }}</h1>
+            <h1 class="text-2xl font-black text-slate-900">Panel de {{ $kiosk->nombre_comercial }}</h1>
             <p class="text-sm text-slate-500">Gestión local de trabajos para esta sede.</p>
         </div>
         <form method="POST" action="{{ route('kiosk.panel.logout') }}">
@@ -59,31 +59,32 @@
                 <tbody class="divide-y divide-slate-100 bg-white">
                     @forelse($printJobs as $printJob)
                         <tr class="hover:bg-slate-50/60">
-                            <td class="px-6 py-4 font-black text-slate-900">{{ $printJob->job_reference }}</td>
+                            <td class="px-6 py-4 font-black text-slate-900">{{ strtoupper(substr($printJob->id, 0, 8)) }}</td>
                             <td class="px-6 py-4 text-sm text-slate-600">
-                                <div class="font-semibold text-slate-800">{{ $printJob->pdfFile->original_name ?? 'PDF no disponible' }}</div>
-                                <div class="text-[10px] uppercase tracking-widest text-slate-400">{{ $printJob->pdfFile->pages_count ?? 0 }} páginas</div>
+                                <div class="font-semibold text-slate-800">{{ basename($printJob->archivo_url) }}</div>
+                                <div class="text-[10px] uppercase tracking-widest text-slate-400">{{ $printJob->paginas }} páginas en total</div>
                             </td>
                             <td class="px-6 py-4 text-sm text-slate-600">
-                                {{ $printJob->copies }}x {{ $printJob->color_type === 'color' ? 'Color' : 'B/N' }}
-                                <div class="text-[10px] uppercase tracking-widest text-slate-400">{{ strtoupper($printJob->paper_size) }} · {{ strtoupper($printJob->orientation) }}</div>
+                                {{ $printJob->color ? 'A Color' : 'Blanco y Negro' }}
                             </td>
                             <td class="px-6 py-4">
                                 <span class="inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest
-                                    {{ $printJob->status === 'completed' ? 'bg-emerald-100 text-emerald-700' : ($printJob->status === 'printing' ? 'bg-indigo-100 text-indigo-700' : ($printJob->status === 'cancelled' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700')) }}">
-                                    {{ $printJob->status }}
+                                    {{ $printJob->estado === 'completado' ? 'bg-emerald-100 text-emerald-700' : ($printJob->estado === 'imprimiendo' ? 'bg-indigo-100 text-indigo-700' : ($printJob->estado === 'cancelado' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700')) }}">
+                                    {{ $printJob->estado }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 font-black text-slate-900">${{ number_format($printJob->cost, 2) }}</td>
+                            <td class="px-6 py-4 font-black text-slate-900">${{ number_format($printJob->costo_total, 2) }}</td>
                             <td class="px-6 py-4">
                                 <div class="flex flex-wrap gap-2">
-                                    @if($printJob->status !== 'completed')
+                                    @if($printJob->estado !== 'completado' && $printJob->estado !== 'cancelado')
                                         <form method="POST" action="{{ route('kiosk.panel.mark-printed', $printJob) }}">
                                             @csrf
-                                            <button type="submit" class="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Completar</button>
+                                            <button type="submit" class="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
+                                                {{ $printJob->estado === 'pendiente' ? 'Cobrar e Imprimir' : 'Completar' }}
+                                            </button>
                                         </form>
                                     @endif
-                                    @if(!in_array($printJob->status, ['completed', 'cancelled'], true))
+                                    @if(!in_array($printJob->estado, ['completado', 'cancelado'], true))
                                         <form method="POST" action="{{ route('kiosk.panel.cancel-job', $printJob) }}" onsubmit="return confirm('¿Cancelar este trabajo?')">
                                             @csrf
                                             <button type="submit" class="rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-700">Cancelar</button>

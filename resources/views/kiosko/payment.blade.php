@@ -46,18 +46,18 @@
                 <div class="bg-indigo-600 rounded-[2rem] p-6 text-white shadow-xl relative overflow-hidden">
                     <p class="text-indigo-100 text-xs font-semibold mb-1 opacity-80">Total a pagar</p>
                     <div class="flex items-baseline gap-2">
-                        <span class="text-5xl font-black tracking-tight">${{ number_format($payment->amount, 2) }}</span>
+                        <span class="text-5xl font-black tracking-tight">${{ number_format($payment->monto, 2) }}</span>
                         <span class="text-indigo-200 font-bold uppercase text-[10px] tracking-widest">USD</span>
                     </div>
                     
                     <div class="mt-4 pt-4 border-t border-white/20 grid grid-cols-2 gap-4">
                         <div>
                             <p class="text-white/60 text-[9px] uppercase font-bold tracking-wider">Referencia</p>
-                            <p class="font-mono font-bold text-sm">{{ $printJob->job_reference }}</p>
+                            <p class="font-mono font-bold text-sm">{{ $printJob->id }}</p>
                         </div>
                         <div class="text-right">
                             <p class="text-white/60 text-[9px] uppercase font-bold tracking-wider">Configuración</p>
-                            <p class="font-bold text-sm">{{ $printJob->copies }}x {{ $printJob->color_type === 'color' ? 'Color' : 'B/N' }}</p>
+                            <p class="font-bold text-sm">{{ $printJob->paginas }} pág(s). • {{ $printJob->color ? 'Color' : 'B/N' }}</p>
                         </div>
                     </div>
                 </div>
@@ -67,8 +67,8 @@
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     </div>
                     <div class="text-xs">
-                        <p class="font-bold text-slate-800">Archivo: {{ Str::limit($printJob->pdfFile->original_name, 30) }}</p>
-                        <p class="text-slate-500">{{ $printJob->pdfFile->pages_count }} páginas • {{ strtoupper($printJob->paper_size) }}</p>
+                        <p class="font-bold text-slate-800">Archivo: {{ Str::limit(basename($printJob->archivo_url), 30) }}</p>
+                        <p class="text-slate-500">{{ $printJob->paginas }} páginas en total</p>
                     </div>
                 </div>
             </div>
@@ -98,8 +98,8 @@
                             </div>
                             <div class="p-3 bg-amber-50 rounded-xl border border-dashed border-amber-200 relative">
                                 <p class="text-[8px] font-bold text-amber-600 uppercase">Concepto</p>
-                                <p class="font-mono font-black text-amber-800 text-sm tracking-widest">{{ $payment->reference_code }}</p>
-                                <button onclick="copyToClipboard('{{ $payment->reference_code }}')" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white text-amber-600 rounded-lg shadow-sm">
+                                <p class="font-mono font-black text-amber-800 text-sm tracking-widest">{{ strtoupper(substr($payment->id, 0, 8)) }}</p>
+                                <button onclick="copyToClipboard('{{ strtoupper(substr($payment->id, 0, 8)) }}')" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white text-amber-600 rounded-lg shadow-sm">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                                 </button>
                             </div>
@@ -113,12 +113,12 @@
                         <a href="https://link.deuna.app/open" class="py-3 bg-[#FFD100] text-black rounded-xl font-black text-[10px] text-center shadow-sm flex items-center justify-center gap-1">
                             PAGAR CON DEUNA!
                         </a>
-                        <a href="{{ route('kiosko.status', $printJob->job_reference) }}" class="py-3 bg-indigo-600 text-white rounded-xl font-black text-[10px] text-center shadow-sm">
+                        <a href="{{ route('kiosko.status', $printJob->id) }}" class="py-3 bg-indigo-600 text-white rounded-xl font-black text-[10px] text-center shadow-sm">
                             ESTADO EN VIVO
                         </a>
                     </div>
                     <div class="flex gap-2">
-                        <a href="https://wa.me/{{ str_replace(['+', ' ', '-'], '', config('evolution.whatsapp_number')) }}?text={{ urlencode('Hola! Ya realicé el pago por Deuna. Mi referencia es: ' . $payment->reference_code . ' por un monto de $' . number_format($payment->amount, 2)) }}" 
+                        <a href="https://wa.me/{{ str_replace(['+', ' ', '-'], '', config('evolution.whatsapp_number')) }}?text={{ urlencode('Hola! Ya realicé el pago por Deuna. Mi referencia es: ' . strtoupper(substr($payment->id, 0, 8)) . ' por un monto de $' . number_format($payment->monto, 2)) }}" 
                            class="flex-[3] py-2.5 bg-emerald-500 text-white rounded-xl font-bold text-[10px] text-center flex items-center justify-center gap-1 shadow-md">
                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.414 0 .018 5.393 0 12.03c0 2.122.554 4.197 1.61 6.006L0 24l6.135-1.61a11.83 11.83 0 005.912 1.579h.005c6.637 0 12.032-5.392 12.034-12.029a11.78 11.78 0 00-3.486-8.484z"/></svg>
                             ENVIAR COMPROBANTE
@@ -199,7 +199,7 @@
                             body: JSON.stringify({ pin: this.pin })
                         });
                         const data = await response.json();
-                        if (data.success) window.location.href = '{{ route("kiosko.status", $printJob->job_reference) }}';
+                        if (data.success) window.location.href = '{{ route("kiosko.status", $printJob->id) }}';
                         else { this.error = 'PIN Incorrecto'; this.pin = ''; setTimeout(() => this.error = '', 2000); }
                     } catch (e) { this.error = 'Error'; this.pin = ''; }
                 }

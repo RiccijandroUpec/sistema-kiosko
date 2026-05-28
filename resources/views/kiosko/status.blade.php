@@ -25,14 +25,15 @@
 <body class="bg-slate-50 text-slate-900 antialiased pb-10">
 
     @php
-        $status = $printJob->status;
-        $paymentStatus = $printJob->payment->status;
+        $status = $printJob->estado;
+        $payment = $printJob->transacciones()->first();
+        $paymentStatus = $payment ? $payment->estado : 'pendiente';
         
         $isReceived = true;
-        $isPaid = $paymentStatus === 'confirmed' || $printJob->paid;
-        $isPrinting = $status === 'printing' && $isPaid;
-        $isCompleted = $status === 'completed';
-        $isCancelled = $status === 'cancelled';
+        $isPaid = $paymentStatus === 'completado' || in_array($status, ['pagado', 'imprimiendo', 'completado']);
+        $isPrinting = $status === 'imprimiendo';
+        $isCompleted = $status === 'completado';
+        $isCancelled = $status === 'cancelado';
     @endphp
 
     <!-- Header Compacto -->
@@ -43,7 +44,7 @@
                 Inicio
             </a>
             <div class="px-4 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                Ref: {{ $printJob->job_reference }}
+                Ref: {{ $printJob->id }}
             </div>
         </div>
     </nav>
@@ -127,15 +128,15 @@
                     <div class="space-y-4">
                         <div class="flex justify-between items-center py-3 border-b border-slate-50">
                             <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Archivo</span>
-                            <span class="text-sm font-bold text-slate-800 truncate max-w-[150px]">{{ $printJob->pdfFile->original_name }}</span>
+                            <span class="text-sm font-bold text-slate-800 truncate max-w-[150px]">{{ basename($printJob->archivo_url) }}</span>
                         </div>
                         <div class="flex justify-between items-center py-3 border-b border-slate-50">
                             <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Configuración</span>
-                            <span class="text-sm font-bold text-slate-800">{{ $printJob->copies }}x {{ $printJob->color_type === 'color' ? 'Color' : 'B/N' }} ({{ strtoupper($printJob->paper_size) }})</span>
+                            <span class="text-sm font-bold text-slate-800">{{ $printJob->paginas }} pág(s). • {{ $printJob->color ? 'Color' : 'B/N' }}</span>
                         </div>
                         <div class="flex justify-between items-center py-3 border-b border-slate-50">
                             <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Pagado</span>
-                            <span class="text-lg font-black text-indigo-600">${{ number_format($printJob->cost, 2) }}</span>
+                            <span class="text-lg font-black text-indigo-600">${{ number_format($printJob->costo_total, 2) }}</span>
                         </div>
                     </div>
 

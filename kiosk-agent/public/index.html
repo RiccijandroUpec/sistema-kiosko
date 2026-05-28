@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RickTech Kiosko</title>
+    <!-- Modern Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #7c3aed;
+            --primary-glow: rgba(124, 58, 237, 0.3);
+            --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #070a13 100%);
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --emerald: #10b981;
+            --emerald-glow: rgba(16, 185, 129, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-col: column;
+            overflow: hidden;
+        }
+
+        /* Screen Wrapper */
+        .kiosk-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand-logo {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 800;
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .brand-name {
+            font-size: 24px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #a5b4fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: var(--emerald);
+            padding: 8px 16px;
+            border-radius: 99px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--emerald);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--emerald);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* Views */
+        .view-section {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .view-section.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Home View Grid */
+        .hero {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .hero h1 {
+            font-size: 56px;
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            margin-bottom: 15px;
+            line-height: 1.1;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 18px;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .action-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 30px;
+            padding: 40px;
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, rgba(124, 58, 237, 0.05) 0%, rgba(0, 0, 0, 0) 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .action-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(124, 58, 237, 0.3);
+            box-shadow: 0 20px 40px rgba(124, 58, 237, 0.1);
+        }
+
+        .action-card:hover::before {
+            opacity: 1;
+        }
+
+        .icon-wrapper {
+            width: 80px;
+            height: 80px;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 25px;
+            font-size: 36px;
+            transition: transform 0.3s;
+        }
+
+        .action-card:hover .icon-wrapper {
+            transform: scale(1.1);
+        }
+
+        .wa-icon {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--emerald);
+            box-shadow: 0 0 20px var(--emerald-glow);
+        }
+
+        .code-icon {
+            background: rgba(124, 58, 237, 0.1);
+            color: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .action-card h2 {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+
+        .action-card p {
+            color: var(--text-muted);
+            font-size: 15px;
+            line-height: 1.5;
+            max-width: 320px;
+        }
+
+        /* Back Button */
+        .back-btn {
+            align-self: flex-start;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            padding: 12px 24px;
+            border-radius: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 30px;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(-4px);
+        }
+
+        /* Search Code View */
+        .search-container {
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 32px;
+            padding: 40px;
+            backdrop-filter: blur(20px);
+            text-align: center;
+        }
+
+        .search-container h2 {
+            font-size: 32px;
+            font-weight: 900;
+            margin-bottom: 10px;
+        }
+
+        .search-container p {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .input-group input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 18px;
+            padding: 18px 24px;
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .input-group input:focus {
+            border-color: var(--primary);
+            background: rgba(124, 58, 237, 0.05);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .primary-btn {
+            background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%);
+            border: none;
+            color: white;
+            border-radius: 18px;
+            padding: 0 30px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px var(--primary-glow);
+            transition: all 0.2s;
+        }
+
+        .primary-btn:hover {
+            transform: scale(1.03);
+            box-shadow: 0 12px 25px var(--primary-glow);
+        }
+
+        /* Keyboard Panel */
+        .keyboard {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 320px;
+            margin: 20px auto 0;
+        }
+
+        .key {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 20px;
+            font-weight: 700;
+            border-radius: 14px;
+            height: 55px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        .key:active {
+            background: var(--primary);
+            transform: scale(0.95);
+        }
+
+        /* WhatsApp Instructions View */
+        .wa-instructions {
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            align-items: center;
+        }
+
+        .wa-info h2 {
+            font-size: 40px;
+            font-weight: 900;
+            margin-bottom: 25px;
+        }
+
+        .steps-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .step-item {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .step-num {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: var(--emerald);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .step-text h4 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .step-text p {
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .wa-qr-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 32px;
+            padding: 40px;
+            text-align: center;
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .qr-wrapper {
+            background: white;
+            padding: 20px;
+            border-radius: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            display: inline-block;
+        }
+
+        .qr-wrapper img {
+            width: 220px;
+            height: 220px;
+            display: block;
+        }
+
+        .wa-number {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--emerald);
+            margin-bottom: 5px;
+        }
+
+        /* Payment / Print Detail View */
+        .order-details-card {
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 32px;
+            padding: 40px;
+            backdrop-filter: blur(20px);
+            display: grid;
+            grid-template-columns: 1.12fr 0.88fr;
+            gap: 40px;
+        }
+
+        .detail-info h2 {
+            font-size: 32px;
+            font-weight: 900;
+            margin-bottom: 25px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 16px;
+        }
+
+        .info-row:last-child {
+            border: none;
+        }
+
+        .info-label {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-weight: 700;
+            color: white;
+        }
+
+        .total-glow {
+            background: linear-gradient(90deg, rgba(124, 58, 237, 0.1) 0%, rgba(124, 58, 237, 0) 100%);
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            border-radius: 0 16px 16px 0;
+            margin-top: 20px;
+        }
+
+        .total-glow .info-value {
+            font-size: 28px;
+            color: #a78bfa;
+            font-weight: 900;
+        }
+
+        .pay-qr-card {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            padding-left: 40px;
+        }
+
+        .pay-qr-card h3 {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .pay-qr-card p {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-bottom: 20px;
+            max-width: 250px;
+        }
+
+        /* Success / Printing Animation View */
+        .printing-status-view {
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 32px;
+            padding: 50px;
+            backdrop-filter: blur(20px);
+        }
+
+        .printer-animation {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 30px;
+            position: relative;
+        }
+
+        .print-icon {
+            font-size: 64px;
+            animation: bouncePrint 2s infinite ease-in-out;
+        }
+
+        .paper-sheet {
+            width: 50px;
+            height: 60px;
+            background: white;
+            border-radius: 4px;
+            position: absolute;
+            bottom: 0;
+            left: 35px;
+            opacity: 0;
+            animation: feedPaper 2s infinite ease-in-out;
+        }
+
+        @keyframes bouncePrint {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes feedPaper {
+            0% { transform: translateY(-40px) scaleY(0); opacity: 0; }
+            45% { transform: translateY(-10px) scaleY(1); opacity: 1; }
+            90%, 100% { transform: translateY(20px) scaleY(1); opacity: 0; }
+        }
+
+        .printing-status-view h2 {
+            font-size: 36px;
+            font-weight: 900;
+            margin-bottom: 10px;
+        }
+
+        .printing-status-view p {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: auto;
+            text-align: center;
+            padding: 30px 0 0;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="kiosk-container">
+        <!-- Header -->
+        <header>
+            <div class="brand">
+                <div class="brand-logo">🖨️</div>
+                <div class="brand-name">RickTech Impresiones</div>
+            </div>
+            <div class="status-badge">
+                <div class="status-dot"></div>
+                <span>Kiosko en Línea</span>
+            </div>
+        </header>
+
+        <!-- View 1: Home -->
+        <section id="view-home" class="view-section active">
+            <div class="hero">
+                <h1>Imprime tus archivos <span>al instante</span></h1>
+                <p>Elige tu método de preferencia y retira tus documentos en segundos.</p>
+            </div>
+            <div class="actions-grid">
+                <div class="action-card" onclick="switchView('view-wa')">
+                    <div class="icon-wrapper wa-icon">💬</div>
+                    <h2>Imprimir por WhatsApp</h2>
+                    <p>Escanea el código QR, envía tu documento y listo. ¡Fácil y rápido!</p>
+                </div>
+                <div class="action-card" onclick="switchView('view-code')">
+                    <div class="icon-wrapper code-icon">🔑</div>
+                    <h2>Tengo un Código</h2>
+                    <p>Si ya enviaste tu PDF por WhatsApp, introduce el código de referencia para pagar e imprimir.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- View 2: WhatsApp Instructions -->
+        <section id="view-wa" class="view-section">
+            <button class="back-btn" onclick="switchView('view-home')">⬅ Volver al Inicio</button>
+            <div class="wa-instructions">
+                <div class="wa-info">
+                    <h2>Impresión fácil con <span>WhatsApp</span></h2>
+                    <div class="steps-list">
+                        <div class="step-item">
+                            <div class="step-num">1</div>
+                            <div class="step-text">
+                                <h4>Escanea el código QR</h4>
+                                <p>Abre la cámara de tu celular o la app de WhatsApp y escanea el código de la derecha.</p>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-num">2</div>
+                            <div class="step-text">
+                                <h4>Envía tu PDF</h4>
+                                <p>Envía tu archivo PDF al chat. Nuestro bot inteligente te responderá de inmediato.</p>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-num">3</div>
+                            <div class="step-text">
+                                <h4>Indica las opciones y paga</h4>
+                                <p>Especifica las copias (ej: "2 copias a color") y paga de forma segura usando Deuna! o Pichincha.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="wa-qr-card">
+                    <div class="qr-wrapper">
+                        <!-- Generates QR dynamically from actual WhatsApp Business link -->
+                        <img id="wa-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://wa.me/593978763955" alt="WhatsApp QR">
+                    </div>
+                    <div class="wa-number">+593 978 763 955</div>
+                    <p style="color: var(--text-muted); font-size: 14px;">Chatea con el Kiosko</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- View 3: Search by reference code -->
+        <section id="view-code" class="view-section">
+            <button class="back-btn" onclick="switchView('view-home')">⬅ Volver</button>
+            <div class="search-container">
+                <h2>Ingresa tu Código</h2>
+                <p>Escribe el código de referencia de tu orden para ver los detalles.</p>
+                <div class="input-group">
+                    <input type="text" id="order-code-input" placeholder="EJ: 019E..." maxlength="36" readonly>
+                    <button class="primary-btn" onclick="searchOrder()">Buscar</button>
+                </div>
+                <!-- On-screen keyboard for kiosk touchscreens -->
+                <div class="keyboard">
+                    <button class="key" onclick="appendCode('1')">1</button>
+                    <button class="key" onclick="appendCode('2')">2</button>
+                    <button class="key" onclick="appendCode('3')">3</button>
+                    <button class="key" onclick="appendCode('4')">4</button>
+                    <button class="key" onclick="appendCode('5')">5</button>
+                    <button class="key" onclick="appendCode('6')">6</button>
+                    <button class="key" onclick="appendCode('7')">7</button>
+                    <button class="key" onclick="appendCode('8')">8</button>
+                    <button class="key" onclick="appendCode('9')">9</button>
+                    <button class="key" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;" onclick="clearCode()">Borrar</button>
+                    <button class="key" onclick="appendCode('0')">0</button>
+                    <button class="key" style="background: rgba(255, 255, 255, 0.1);" onclick="backspaceCode()">⌫</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- View 4: Order Details & Payment QR -->
+        <section id="view-order-details" class="view-section">
+            <button class="back-btn" onclick="switchView('view-code')">⬅ Volver</button>
+            <div class="order-details-card">
+                <div class="detail-info">
+                    <h2>Detalles de tu Orden</h2>
+                    <div class="info-row">
+                        <span class="info-label">Referencia</span>
+                        <span class="info-value" id="detail-ref">—</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Archivo</span>
+                        <span class="info-value" id="detail-filename">—</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Páginas impresas</span>
+                        <span class="info-value" id="detail-pages">—</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Tipo impresión</span>
+                        <span class="info-value" id="detail-type">—</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Estado de pago</span>
+                        <span class="info-value" id="detail-status">—</span>
+                    </div>
+                    <div class="info-row total-glow">
+                        <span class="info-label" style="font-weight: 800; color: #c084fc;">Total a Pagar</span>
+                        <span class="info-value" id="detail-total">$0.00</span>
+                    </div>
+                </div>
+                <div class="pay-qr-card">
+                    <h3>Escanear y Pagar</h3>
+                    <p>Usa la app Deuna! o Pichincha para pagar instantáneamente.</p>
+                    <div class="qr-wrapper" style="padding: 10px; border-radius: 16px; margin-bottom: 10px;">
+                        <!-- Displays Pichincha QR image -->
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=2210344445" alt="Payment QR" style="width: 170px; height: 170px;">
+                    </div>
+                    <p style="font-size: 11px; font-weight: 700; color: white;">Cuenta Ahorros Pichincha: 2210344445</p>
+                    <p style="font-size: 10px; color: var(--text-muted); margin-top: 5px;">Al pagar, la impresora se activará automáticamente.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- View 5: Printing Animation / Success -->
+        <section id="view-printing" class="view-section">
+            <div class="printing-status-view">
+                <div class="printer-animation">
+                    <div class="print-icon">🖨️</div>
+                    <div class="paper-sheet"></div>
+                </div>
+                <h2 id="print-status-title">Imprimiendo documento...</h2>
+                <p id="print-status-desc">Espera un momento mientras la impresora procesa tus hojas.</p>
+                <div style="font-size: 14px; color: var(--emerald); font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <div class="status-dot"></div>
+                    <span id="print-status-badge">Estado: Procesando</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            © 2026 RickTech Impresiones Kiosko • Todos los derechos reservados.
+        </footer>
+    </div>
+
+    <script>
+        let currentKioskConfig = null;
+        let checkPaymentInterval = null;
+
+        // Fetch kiosk configuration at startup
+        async function loadKioskConfig() {
+            try {
+                const response = await fetch('/api/state');
+                const state = await response.json();
+                if (state && state.kioskId) {
+                    currentKioskConfig = state;
+                    document.querySelector('.brand-name').innerText = state.kioskName || 'RickTech Kiosko';
+                }
+            } catch (e) {
+                console.error("Failed to load kiosk configuration", e);
+            }
+        }
+
+        loadKioskConfig();
+
+        function switchView(viewId) {
+            // Stop any payment status polling if navigating away
+            if (viewId !== 'view-order-details' && checkPaymentInterval) {
+                clearInterval(checkPaymentInterval);
+                checkPaymentInterval = null;
+            }
+
+            document.querySelectorAll('.view-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(viewId).classList.add('active');
+        }
+
+        // On-screen keyboard logic
+        function appendCode(char) {
+            const input = document.getElementById('order-code-input');
+            input.value += char;
+        }
+
+        function clearCode() {
+            document.getElementById('order-code-input').value = '';
+        }
+
+        function backspaceCode() {
+            const input = document.getElementById('order-code-input');
+            input.value = input.value.slice(0, -1);
+        }
+
+        // Search order logic
+        async function searchOrder() {
+            const code = document.getElementById('order-code-input').value.trim();
+            if (!code) {
+                alert("Por favor ingresa un código de referencia.");
+                return;
+            }
+
+            try {
+                // Query local agent web api state or query central backend directly
+                const response = await fetch(`/api/order-details?id=${code}`);
+                if (!response.ok) {
+                    throw new Error("No se encontró ninguna orden con ese código.");
+                }
+                const data = await response.json();
+                displayOrderDetails(data.data);
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        function displayOrderDetails(order) {
+            document.getElementById('detail-ref').innerText = order.id;
+            document.getElementById('detail-filename').innerText = "Documento PDF";
+            document.getElementById('detail-pages').innerText = `${order.paginas} páginas`;
+            document.getElementById('detail-type').innerText = order.color ? "Color" : "Blanco y Negro";
+            
+            let statusText = "Pendiente de Pago";
+            let statusColor = "#f59e0b"; // Amber
+            if (order.estado === 'pagado') {
+                statusText = "Pagado - Imprimiendo";
+                statusColor = "#10b981"; // Emerald
+            } else if (order.estado === 'completado') {
+                statusText = "Completado";
+                statusColor = "#3b82f6"; // Blue
+            }
+            
+            const statusEl = document.getElementById('detail-status');
+            statusEl.innerText = statusText;
+            statusEl.style.color = statusColor;
+
+            document.getElementById('detail-total').innerText = `$${parseFloat(order.costo_total).toFixed(2)}`;
+
+            switchView('view-order-details');
+
+            // If pending, poll status
+            if (order.estado === 'pendiente') {
+                startPaymentPolling(order.id);
+            } else if (order.estado === 'pagado' || order.estado === 'imprimiendo') {
+                triggerLocalPrint(order);
+            }
+        }
+
+        function startPaymentPolling(orderId) {
+            if (checkPaymentInterval) clearInterval(checkPaymentInterval);
+            
+            checkPaymentInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/order-details?id=${orderId}`);
+                    const data = await response.json();
+                    const order = data.data;
+
+                    if (order.estado === 'pagado' || order.estado === 'imprimiendo' || order.estado === 'completado') {
+                        clearInterval(checkPaymentInterval);
+                        checkPaymentInterval = null;
+                        triggerLocalPrint(order);
+                    }
+                } catch (e) {
+                    console.error("Error polling payment status", e);
+                }
+            }, 3000);
+        }
+
+        function triggerLocalPrint(order) {
+            switchView('view-printing');
+            document.getElementById('print-status-title').innerText = "Imprimiendo documento...";
+            document.getElementById('print-status-desc').innerText = "Espera un momento mientras la impresora procesa tus hojas.";
+            document.getElementById('print-status-badge').innerText = "Estado: Imprimiendo";
+
+            // Status updates are completed by agent index.js which listens via Realtime!
+            // We can poll status here to know when it finishes
+            const printCheckInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/order-details?id=${order.id}`);
+                    const data = await response.json();
+                    const currentOrder = data.data;
+
+                    if (currentOrder.estado === 'completado') {
+                        clearInterval(printCheckInterval);
+                        document.getElementById('print-status-title').innerText = "¡Impresión Completada!";
+                        document.getElementById('print-status-desc').innerText = "Retira tus hojas de la bandeja de salida. ¡Gracias por preferir RickTech!";
+                        document.getElementById('print-status-badge').innerText = "Estado: Completado";
+                        
+                        setTimeout(() => {
+                            clearCode();
+                            switchView('view-home');
+                        }, 5000);
+                    }
+                } catch (e) {
+                    console.error("Error checking print completion", e);
+                }
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

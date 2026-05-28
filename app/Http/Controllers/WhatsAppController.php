@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Kiosk;
-use App\Models\PdfFile;
-use App\Models\PrintJob;
-use App\Models\Payment;
+use App\Models\Cliente;
+use App\Models\Kiosko;
+use App\Models\OrdenImpresion;
+use App\Models\TransaccionPago;
 use App\Services\EvolutionService;
 use App\Services\DeepseekService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 use Smalot\PdfParser\Parser;
 
 class WhatsAppController extends Controller
@@ -43,7 +44,18 @@ class WhatsAppController extends Controller
             return response()->json(['status' => 'ignored']);
         }
 
-        return $this->handleIncomingMessage($payload['data'] ?? []);
+        $data = $payload['data'] ?? [];
+        $messageId = $data['key']['id'] ?? '';
+        if ($messageId) {
+            $lockKey = 'webhook_lock_' . $messageId;
+            if (Cache::has($lockKey)) {
+                Log::info('Webhook ignorado: Mensaje duplicado detectado (lock activo)', ['messageId' => $messageId]);
+                return response()->json(['status' => 'ignored_duplicate']);
+            }
+            Cache::put($lockKey, true, now()->addMinutes(5));
+        }
+
+        return $this->handleIncomingMessage($data);
     }
 
     /**
@@ -112,10 +124,7 @@ class WhatsAppController extends Controller
         $matchedKiosk = $this->captureKioskContextFromText($from, $text);
 
         if ($matchedKiosk) {
-            $message = "✅ Sede detectada: *{$matchedKiosk->nombre}*";
-            if (!empty($matchedKiosk->ubicacion)) {
-                $message .= " ({$matchedKiosk->ubicacion})";
-            }
+            $message = "✅ Sede detectada: *{$matchedKiosk->nombre_comercial}*";
             $message .= "\n\nAhora envíame tu PDF y lo asignaré automáticamente a esa sede.";
 
             $this->evolutionService->sendMessage($from, $message);
@@ -147,11 +156,10 @@ class WhatsAppController extends Controller
             if (isset($data['config'])) {
                 $config = $data['config'];
                 
-                // Buscar el último PDF enviado por este número
-                $lastPdf = PdfFile::where('email', $from)->orderBy('created_at', 'desc')->first();
-
-                if ($lastPdf) {
-                    $this->promptForKioskSelection($from, $lastPdf, $this->getKioskContext($from));
+                // Buscar si hay selección pendiente
+                $state = $this->getSelectionState($from);
+                if ($state) {
+                    $this->handlePrintConfigMessage($from, $text, $state);
                     return;
                 }
             }
@@ -191,22 +199,45 @@ class WhatsAppController extends Controller
             $path = "pdfs/{$uniqueFileName}";
             Storage::disk('public')->put($path, $fileContent);
 
+            // Subir a Supabase Storage (con fallback local)
+            $pdfUrl = $this->uploadToSupabase($fileContent, $uniqueFileName);
+
             // Contar páginas
             $parser = new Parser();
             $document = $parser->parseContent($fileContent);
             $pages = count($document->getPages());
 
-            // Guardar en BD
-            $pdfFile = PdfFile::create([
+            // Guardar en la base de datos (pdf_files) con UUID
+            $pdfFile = \App\Models\PdfFile::create([
                 'filename' => $uniqueFileName,
                 'original_name' => $fileName,
-                'email' => $from,
+                'email' => null,
                 'pages_count' => $pages,
                 'file_path' => $path,
-                'file_size' => strlen($fileContent) / 1024,
+                'file_size' => strlen($fileContent) / 1024, // KB
             ]);
 
-            $this->promptForKioskSelection($from, $pdfFile, $this->getKioskContext($from));
+            // Obtener contexto de kiosko activo si existe
+            $preferredKiosk = $this->getKioskContext($from);
+            $kioskoId = $preferredKiosk ? $preferredKiosk->id : null;
+
+            // Generar enlace público para configuración web
+            $configureUrl = route('kiosko.configure', [
+                'pdf' => $pdfFile->id,
+                'kiosko' => $kioskoId
+            ]);
+
+            $message = "📄 *¡He recibido tu archivo!* \n\n" .
+                       "📝 *Nombre:* {$fileName}\n" .
+                       "📄 *Páginas:* {$pages}\n\n" .
+                       "Puedes configurar las opciones de tu impresión en el siguiente enlace:\n" .
+                       $configureUrl;
+
+            if ($preferredKiosk) {
+                $message .= "\n\n📍 Sede preseleccionada: *{$preferredKiosk->nombre_comercial}*";
+            }
+
+            $this->evolutionService->sendMessage($from, $message);
 
         } catch (\Exception $e) {
             Log::error('Error processing PDF from Evolution', ['error' => $e->getMessage()]);
@@ -214,9 +245,43 @@ class WhatsAppController extends Controller
         }
     }
 
-    protected function promptForKioskSelection(string $from, PdfFile $pdfFile, ?Kiosk $preferredKiosk = null): void
+    private function uploadToSupabase(string $fileContent, string $uniqueFileName): string
     {
-        $kiosks = Kiosk::query()->orderBy('nombre')->get();
+        $supabaseUrl = env('SUPABASE_URL');
+        $supabaseKey = env('SUPABASE_ANON_KEY');
+        
+        if (!empty($supabaseUrl) && !empty($supabaseKey)) {
+            $bucket = 'pdfs';
+            $uploadUrl = rtrim($supabaseUrl, '/') . "/storage/v1/object/{$bucket}/{$uniqueFileName}";
+            
+            try {
+                $response = Http::withHeaders([
+                    'Authorization' => "Bearer {$supabaseKey}",
+                    'apiKey' => $supabaseKey,
+                    'Content-Type' => 'application/pdf',
+                ])->withBody($fileContent, 'application/pdf')
+                  ->post($uploadUrl);
+                  
+                if ($response->successful()) {
+                    return rtrim($supabaseUrl, '/') . "/storage/v1/object/public/{$bucket}/{$uniqueFileName}";
+                }
+                
+                Log::warning('Supabase storage upload unsuccessful, using local storage fallback', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Supabase storage upload exception: ' . $e->getMessage());
+            }
+        }
+        
+        // Local fallback URL
+        return asset("storage/pdfs/{$uniqueFileName}");
+    }
+
+    protected function promptForKioskSelection(string $from, array $pdfState, ?Kiosko $preferredKiosk = null): void
+    {
+        $kiosks = Kiosko::query()->orderBy('nombre_comercial')->get();
 
         if ($kiosks->isEmpty()) {
             $this->evolutionService->sendMessage($from, "📄 Recibí tu PDF, pero todavía no hay kioskos registrados para asignarlo.");
@@ -224,39 +289,33 @@ class WhatsAppController extends Controller
         }
 
         if ($preferredKiosk) {
-            Cache::put($this->selectionStateKey($from), [
+            Cache::put($this->selectionStateKey($from), array_merge($pdfState, [
                 'step' => 'awaiting_print_config',
-                'pdf_id' => $pdfFile->id,
                 'kiosk_id' => $preferredKiosk->id,
-            ], now()->addMinutes(20));
+            ]), now()->addMinutes(20));
 
-            $preferredMessage = "✅ PDF recibido para la sede *{$preferredKiosk->nombre}*";
-            if (!empty($preferredKiosk->ubicacion)) {
-                $preferredMessage .= " ({$preferredKiosk->ubicacion})";
-            }
+            $preferredMessage = "✅ PDF recibido para la sede *{$preferredKiosk->nombre_comercial}*";
             $preferredMessage .= "\n\nAhora dime cómo quieres imprimirlo. Ejemplos: '3 copias a color' o '2 copias blanco y negro'.";
 
             $this->evolutionService->sendMessage($from, $preferredMessage);
             return;
         }
 
-        Cache::put($this->selectionStateKey($from), [
+        Cache::put($this->selectionStateKey($from), array_merge($pdfState, [
             'step' => 'awaiting_kiosk_selection',
-            'pdf_id' => $pdfFile->id,
-        ], now()->addMinutes(20));
+        ]), now()->addMinutes(20));
 
         $this->evolutionService->sendMessage($from, $this->buildKioskPrompt($kiosks));
     }
 
     protected function handleKioskSelection(string $from, string $text, array $state): void
     {
-        $pdfFile = PdfFile::find($state['pdf_id'] ?? null);
-        $kiosks = Kiosk::query()->orderBy('nombre')->get();
+        $kiosks = Kiosko::query()->orderBy('nombre_comercial')->get();
         $kiosk = $this->resolveKioskSelection($text, $kiosks);
 
-        if (!$pdfFile || $kiosks->isEmpty()) {
+        if ($kiosks->isEmpty()) {
             $this->clearSelectionState($from);
-            $this->evolutionService->sendMessage($from, "No pude recuperar el PDF o ya no hay kioskos disponibles. Vuelve a enviar el archivo.");
+            $this->evolutionService->sendMessage($from, "No hay kioskos disponibles. Vuelve a enviar el archivo.");
             return;
         }
 
@@ -265,21 +324,19 @@ class WhatsAppController extends Controller
             return;
         }
 
-        Cache::put($this->selectionStateKey($from), [
+        Cache::put($this->selectionStateKey($from), array_merge($state, [
             'step' => 'awaiting_print_config',
-            'pdf_id' => $pdfFile->id,
             'kiosk_id' => $kiosk->id,
-        ], now()->addMinutes(20));
+        ]), now()->addMinutes(20));
 
-        $this->evolutionService->sendMessage($from, "✅ Sede seleccionada: *{$kiosk->nombre}*\n\nAhora dime cómo quieres imprimirlo. Ejemplos: '3 copias a color' o '2 copias blanco y negro'.");
+        $this->evolutionService->sendMessage($from, "✅ Sede seleccionada: *{$kiosk->nombre_comercial}*\n\nAhora dime cómo quieres imprimirlo. Ejemplos: '3 copias a color' o '2 copias blanco y negro'.");
     }
 
     protected function handlePrintConfigMessage(string $from, string $text, array $state): void
     {
-        $pdfFile = PdfFile::find($state['pdf_id'] ?? null);
-        $kiosk = Kiosk::find($state['kiosk_id'] ?? null);
+        $kiosk = Kiosko::find($state['kiosk_id'] ?? null);
 
-        if (!$pdfFile || !$kiosk) {
+        if (!$kiosk) {
             $this->clearSelectionState($from);
             $this->evolutionService->sendMessage($from, "No pude continuar con la configuración. Vuelve a enviar el PDF.");
             return;
@@ -301,52 +358,57 @@ class WhatsAppController extends Controller
             return;
         }
 
-        $this->createPrintJobFromConfig($pdfFile, $from, $data['config'], $kiosk);
+        $this->createPrintJobFromConfig($state, $from, $data['config'], $kiosk);
     }
 
-    protected function createPrintJobFromConfig(PdfFile $lastPdf, string $from, array $config, ?Kiosk $kiosk): void
+    protected function createPrintJobFromConfig(array $state, string $from, array $config, Kiosko $kiosk): void
     {
         $copies = max(1, (int) ($config['copies'] ?? 1));
         $colorType = ($config['color_type'] ?? 'bw') === 'color' ? 'color' : 'bw';
 
-        $costBW = config('printing.cost_bw', 0.05);
-        $costColor = config('printing.cost_color', 0.20);
+        $costBW = $kiosk->precio_blanco_negro ?? 0.05;
+        $costColor = $kiosk->precio_color ?? 0.20;
         $costPerPage = $colorType === 'color' ? $costColor : $costBW;
-        $totalCost = $lastPdf->pages_count * $copies * $costPerPage;
+        
+        $pdfPagesCount = (int) ($state['pdf_pages_count'] ?? 1);
+        $totalCost = $pdfPagesCount * $copies * $costPerPage;
 
-        $printJob = PrintJob::create([
-            'job_reference' => PrintJob::generateJobReference($lastPdf->original_name),
-            'kiosk_id' => $kiosk?->id,
-            'pdf_file_id' => $lastPdf->id,
-            'email' => $from,
-            'copies' => $copies,
-            'color_type' => $colorType,
-            'paper_size' => 'a4',
-            'orientation' => 'portrait',
-            'cost' => $totalCost,
-            'status' => 'pending',
-            'paid' => false,
+        // Registrar o encontrar el Cliente
+        $cliente = Cliente::firstOrCreate(
+            ['telefono' => $from],
+            ['nombre' => null]
+        );
+
+        // Crear la OrdenImpresion
+        $orden = OrdenImpresion::create([
+            'kiosko_id' => $kiosk->id,
+            'cliente_id' => $cliente->id,
+            'archivo_url' => $state['pdf_url'],
+            'paginas' => $pdfPagesCount * $copies,
+            'color' => $colorType === 'color',
+            'costo_total' => $totalCost,
+            'estado' => 'pendiente',
         ]);
 
-        Payment::create([
-            'print_job_id' => $printJob->id,
-            'kiosk_id' => $kiosk?->id,
-            'reference_code' => Payment::generateReferenceCode(),
-            'amount' => $totalCost,
-            'status' => 'pending',
+        // Crear TransaccionPago pendiente
+        TransaccionPago::create([
+            'orden_id' => $orden->id,
+            'monto' => $totalCost,
+            'metodo' => 'Deuna',
+            'estado' => 'pendiente',
         ]);
 
         $this->clearSelectionState($from);
 
-        $kioskName = $kiosk?->nombre ?? 'la sede seleccionada';
+        $kioskName = $kiosk->nombre_comercial ?? 'la sede seleccionada';
         $this->evolutionService->sendMessage($from, "✅ ¡Impresión configurada para {$kioskName}!\n\n" .
-            "📍 Ref: *{$printJob->job_reference}*\n" .
+            "📍 Ref: *{$orden->id}*\n" .
             "💰 Total: *$" . number_format($totalCost, 2, '.', '') . "*\n" .
-            "📝 Detalle: {$copies} copias • " . ($colorType === 'color' ? 'COLOR' : 'B/N') . "\n\n" .
+            "📝 Detalle: {$copies} copias • " . ($colorType === 'color' ? 'COLOR' : 'B/N') . " ({$pdfPagesCount} págs. orig.)\n\n" .
             "Puedes pagar usando el código QR en el kiosko.");
     }
 
-    protected function resolveKioskSelection(string $text, $kiosks): ?Kiosk
+    protected function resolveKioskSelection(string $text, $kiosks): ?Kiosko
     {
         $cleanText = trim(mb_strtolower($text));
 
@@ -361,11 +423,11 @@ class WhatsAppController extends Controller
                 return $byPosition;
             }
 
-            return Kiosk::find($position);
+            return Kiosko::find($position);
         }
 
         foreach ($kiosks as $kiosk) {
-            $haystack = mb_strtolower(trim($kiosk->nombre . ' ' . ($kiosk->ubicacion ?? '')));
+            $haystack = mb_strtolower(trim($kiosk->nombre_comercial));
             if (str_contains($haystack, $cleanText)) {
                 return $kiosk;
             }
@@ -376,10 +438,9 @@ class WhatsAppController extends Controller
 
     protected function buildKioskPrompt($kiosks): string
     {
-        $lines = $kiosks->values()->map(function (Kiosk $kiosk, int $index) {
+        $lines = $kiosks->values()->map(function (Kiosko $kiosk, int $index) {
             $position = $index + 1;
-            $location = $kiosk->ubicacion ? " - {$kiosk->ubicacion}" : '';
-            return "{$position}. {$kiosk->nombre}{$location}";
+            return "{$position}. {$kiosk->nombre_comercial}";
         })->implode("\n");
 
         return "📄 ¡He recibido tu archivo!\n\nAhora dime en qué sede estás:\n{$lines}\n\nResponde con el número o el nombre de la sede.";
@@ -395,7 +456,7 @@ class WhatsAppController extends Controller
         return 'whatsapp:kiosk-context:' . $from;
     }
 
-    protected function captureKioskContextFromText(string $from, string $text): ?Kiosk
+    protected function captureKioskContextFromText(string $from, string $text): ?Kiosko
     {
         $normalized = mb_strtolower(trim($text));
 
@@ -407,8 +468,8 @@ class WhatsAppController extends Controller
             return null;
         }
 
-        foreach (Kiosk::query()->get() as $kiosk) {
-            $haystack = mb_strtolower(trim($kiosk->nombre . ' ' . ($kiosk->ubicacion ?? '')));
+        foreach (Kiosko::query()->get() as $kiosk) {
+            $haystack = mb_strtolower(trim($kiosk->nombre_comercial));
             if ($haystack !== '' && str_contains($normalized, $haystack)) {
                 Cache::put($this->kioskContextKey($from), $kiosk->id, now()->addHours(12));
                 return $kiosk;
@@ -418,7 +479,7 @@ class WhatsAppController extends Controller
         return null;
     }
 
-    protected function getKioskContext(string $from): ?Kiosk
+    protected function getKioskContext(string $from): ?Kiosko
     {
         $kioskId = Cache::get($this->kioskContextKey($from));
 
@@ -426,7 +487,7 @@ class WhatsAppController extends Controller
             return null;
         }
 
-        return Kiosk::find($kioskId);
+        return Kiosko::find($kioskId);
     }
 
     protected function getSelectionState(string $from): ?array

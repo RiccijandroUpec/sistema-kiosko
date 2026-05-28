@@ -93,7 +93,10 @@ class OrdenImpresionResource extends Resource
                 TextEntry::make('paginas')->label('Páginas'),
                 IconEntry::make('color')->label('A Color')->boolean(),
                 TextEntry::make('costo_total')->label('Costo Total')->money('USD'),
-                TextEntry::make('archivo_url')->label('PDF')->url(),
+                TextEntry::make('archivo_url')
+                    ->label('PDF')
+                    ->url(fn ($record) => $record->archivo_url)
+                    ->openUrlInNewTab(),
                 TextEntry::make('created_at')->label('Creada')->dateTime('d/m/Y H:i'),
             ])->columns(2),
         ]);

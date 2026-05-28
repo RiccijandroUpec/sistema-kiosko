@@ -29,7 +29,11 @@ class KioskoResource extends Resource
                 ->description('Datos básicos del kiosko de impresión.')
                 ->icon('heroicon-o-information-circle')
                 ->schema([
-                    Grid::make(2)->schema([
+                    Forms\Components\TextInput::make('id')
+                        ->label('ID del Kiosko (UUID)')
+                        ->disabled()
+                        ->visible(fn ($record) => $record !== null),
+                    Grid::make(3)->schema([
                         Forms\Components\TextInput::make('nombre_comercial')
                             ->label('Nombre Comercial')
                             ->required()
@@ -45,6 +49,14 @@ class KioskoResource extends Resource
                             ->default('inactivo')
                             ->required()
                             ->native(false),
+                        Forms\Components\TextInput::make('pin')
+                            ->label('PIN de Seguridad')
+                            ->required()
+                            ->minLength(4)
+                            ->maxLength(4)
+                            ->default('0000')
+                            ->placeholder('Ej: 1234')
+                            ->helperText('PIN de 4 dígitos para acceso local.'),
                     ]),
                     Forms\Components\TextInput::make('nombre_cups')
                         ->label('Nombre de Impresora (CUPS)')
@@ -113,6 +125,11 @@ class KioskoResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->label('ID (UUID)')
+                    ->fontFamily('mono')
+                    ->copyable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('nombre_comercial')
                     ->label('Nombre')
                     ->searchable()

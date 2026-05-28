@@ -75,7 +75,7 @@
                             <option value="">Automático (kiosko online con menos carga)</option>
                             @foreach($kiosks as $kiosk)
                                 <option value="{{ $kiosk->id }}" @selected(old('kiosk_id', $defaultKioskId ?? '') == $kiosk->id)>
-                                    {{ $kiosk->nombre }}{{ $kiosk->ubicacion ? ' - ' . $kiosk->ubicacion : '' }}{{ $kiosk->estado_conexion ? ' (' . $kiosk->estado_conexion . ')' : '' }}
+                                    {{ $kiosk->nombre_comercial }} ({{ $kiosk->estado }})
                                 </option>
                             @endforeach
                         </select>

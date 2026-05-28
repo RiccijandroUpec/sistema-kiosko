@@ -20,6 +20,7 @@ class Kiosko extends Model
         'nombre_cups',
         'color_tema',
         'logo_url',
+        'pin',
         'ultima_conexion',
     ];
 

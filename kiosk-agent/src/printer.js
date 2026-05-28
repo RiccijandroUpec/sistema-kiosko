@@ -24,7 +24,7 @@ export async function savePdf(jobReference, pdfBuffer) {
   return filePath;
 }
 
-export async function printPdf(filePath) {
+export async function printPdf(filePath, printerName = null, options = {}) {
   if (config.printMode === 'pdf') {
     await ensureOutputDir();
 
@@ -34,13 +34,34 @@ export async function printPdf(filePath) {
   }
 
   if (process.platform === 'win32') {
-    const script = `Start-Process -FilePath '${filePath.replace(/'/g, "''")}' -Verb Print`;
+    let script = '';
+    if (printerName) {
+      script = `Set-DefaultPrinter -Name '${printerName.replace(/'/g, "''")}'; Start-Process -FilePath '${filePath.replace(/'/g, "''")}' -Verb Print`;
+    } else {
+      script = `Start-Process -FilePath '${filePath.replace(/'/g, "''")}' -Verb Print`;
+    }
     await execFileAsync('powershell.exe', ['-NoProfile', '-Command', script]);
     return;
   }
 
   if (process.platform === 'linux') {
-    await execFileAsync('lp', [filePath]);
+    const args = [];
+    if (printerName) {
+      args.push('-d', printerName);
+    }
+
+    // Opciones de color de CUPS
+    if (options.colorType === 'bw') {
+      args.push('-o', 'ColorModel=Gray', '-o', 'ColorMode=monochrome');
+    } else if (options.colorType === 'color') {
+      args.push('-o', 'ColorModel=Color', '-o', 'ColorMode=color');
+    }
+
+    // Auto-rotar y ajustar página
+    args.push('-o', 'fit-to-page');
+    args.push(filePath);
+
+    await execFileAsync('lp', args);
     return;
   }
 

@@ -2,31 +2,30 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Kiosk;
+use App\Models\Kiosko;
 use Illuminate\Http\Request;
 
 class KioskPanelAuthController extends Controller
 {
     public function showLoginForm()
     {
-        $kiosks = Kiosk::orderBy('nombre')->get(['id', 'nombre', 'ubicacion']);
-
-        return view('kiosko.panel-login', compact('kiosks'));
+        // Redirigir al login principal unificado
+        return redirect()->route('login');
     }
 
     public function login(Request $request)
     {
         $validated = $request->validate([
-            'kiosk_id' => 'required|exists:kiosks,id',
             'pin' => 'required|digits:4',
         ]);
 
-        $kiosk = Kiosk::find($validated['kiosk_id']);
+        // Buscar el kiosko directamente por su PIN único
+        $kiosk = Kiosko::where('pin', $validated['pin'])->first();
 
-        if (!$kiosk || empty($kiosk->access_pin) || $kiosk->access_pin !== $validated['pin']) {
+        if (!$kiosk) {
             return back()->withErrors([
-                'pin' => 'PIN inválido para el kiosko seleccionado.',
-            ])->onlyInput('kiosk_id');
+                'pin' => 'PIN inválido o no asociado a ningún kiosko.',
+            ]);
         }
 
         $request->session()->put('kiosk_access_id', $kiosk->id);
@@ -40,6 +39,6 @@ class KioskPanelAuthController extends Controller
         $request->session()->forget('kiosk_access_id');
         $request->session()->regenerateToken();
 
-        return redirect()->route('kiosk.panel.login.form')->with('success', 'Sesión de kiosko cerrada.');
+        return redirect()->route('login')->with('success', 'Sesión de kiosko cerrada.');
     }
 }

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Kiosk;
-use App\Models\PrintJob;
+use App\Models\Kiosko;
+use App\Models\OrdenImpresion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -13,81 +13,92 @@ class KioskPanelController extends Controller
     {
         $kiosk = $this->getSessionKiosk($request);
 
-        $query = PrintJob::with(['pdfFile', 'payment'])
-            ->where('kiosk_id', $kiosk->id)
+        $query = OrdenImpresion::with(['cliente'])
+            ->where('kiosko_id', $kiosk->id)
             ->orderBy('created_at', 'desc');
 
         if ($request->filled('status') && $request->status !== 'all') {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('paid')) {
-            $query->where('paid', $request->paid === 'yes');
+            $query->where('estado', $request->status);
         }
 
         $printJobs = $query->paginate(15);
 
         $stats = [
-            'total' => PrintJob::where('kiosk_id', $kiosk->id)->count(),
-            'pending' => PrintJob::where('kiosk_id', $kiosk->id)->where('status', 'pending')->count(),
-            'printing' => PrintJob::where('kiosk_id', $kiosk->id)->where('status', 'printing')->count(),
-            'completed' => PrintJob::where('kiosk_id', $kiosk->id)->where('status', 'completed')->count(),
+            'total' => OrdenImpresion::where('kiosko_id', $kiosk->id)->count(),
+            'pending' => OrdenImpresion::where('kiosko_id', $kiosk->id)->where('estado', 'pendiente')->count(),
+            'printing' => OrdenImpresion::where('kiosko_id', $kiosk->id)->where('estado', 'imprimiendo')->count(),
+            'completed' => OrdenImpresion::where('kiosko_id', $kiosk->id)->where('estado', 'completado')->count(),
         ];
 
         return view('kiosko.panel', compact('kiosk', 'printJobs', 'stats'));
     }
 
-    public function markAsPrinted(Request $request, PrintJob $printJob)
+    public function markAsPrinted(Request $request, OrdenImpresion $printJob)
     {
         $kiosk = $this->getSessionKiosk($request);
         $this->ensureOwnedByKiosk($printJob, $kiosk);
 
+        if ($printJob->estado === 'pendiente') {
+            // Si está pendiente, al dar "Completar/Cobrar" en el panel cobramos el efectivo
+            // y liberamos el trabajo marcándolo como 'pagado' para que el agente lo imprima físicamente.
+            $printJob->update([
+                'estado' => 'pagado',
+            ]);
+
+            $payment = $printJob->transacciones()->first();
+            if ($payment) {
+                $payment->update(['estado' => 'completado']);
+            }
+
+            return back()->with('success', 'Pago registrado. Trabajo enviado a la impresora.');
+        }
+
+        // Si ya estaba pagado o imprimiendo, lo marcamos directamente como completado
         $printJob->update([
-            'status' => 'completed',
-            'paid' => true,
-            'printed_at' => now(),
+            'estado' => 'completado',
         ]);
 
-        if ($printJob->payment) {
-            $printJob->payment->update(['status' => 'confirmed']);
+        $payment = $printJob->transacciones()->first();
+        if ($payment) {
+            $payment->update(['estado' => 'completado']);
         }
 
         return back()->with('success', 'Trabajo marcado como completado.');
     }
 
-    public function cancelJob(Request $request, PrintJob $printJob)
+    public function cancelJob(Request $request, OrdenImpresion $printJob)
     {
         $kiosk = $this->getSessionKiosk($request);
         $this->ensureOwnedByKiosk($printJob, $kiosk);
 
-        $printJob->update(['status' => 'cancelled']);
+        $printJob->update(['estado' => 'cancelado']);
 
-        if ($printJob->payment && $printJob->payment->status === 'confirmed') {
-            $printJob->payment->update([
-                'status' => 'cancelled',
-                'notes' => 'Trabajo cancelado desde panel de kiosko',
+        $payment = $printJob->transacciones()->first();
+        if ($payment) {
+            $payment->update([
+                'estado' => 'cancelado',
             ]);
         }
 
         Log::info('Trabajo cancelado desde panel kiosko', [
             'kiosk_id' => $kiosk->id,
-            'job_reference' => $printJob->job_reference,
+            'job_reference' => $printJob->id,
         ]);
 
         return back()->with('success', 'Trabajo cancelado.');
     }
 
-    private function getSessionKiosk(Request $request): Kiosk
+    private function getSessionKiosk(Request $request): Kiosko
     {
-        /** @var Kiosk $kiosk */
+        /** @var Kiosko $kiosk */
         $kiosk = $request->attributes->get('kiosk_session');
 
         return $kiosk;
     }
 
-    private function ensureOwnedByKiosk(PrintJob $printJob, Kiosk $kiosk): void
+    private function ensureOwnedByKiosk(OrdenImpresion $printJob, Kiosko $kiosk): void
     {
-        if ((int) $printJob->kiosk_id !== (int) $kiosk->id) {
+        if ($printJob->kiosko_id !== $kiosk->id) {
             abort(403, 'No puedes gestionar trabajos de otro kiosko.');
         }
     }

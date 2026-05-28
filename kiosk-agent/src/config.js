@@ -34,8 +34,10 @@ const rootDir = path.resolve(path.dirname(currentFile), '..');
 const localEnv = readEnvFile(path.join(rootDir, '.env'));
 
 export const config = {
-  centralUrl: process.env.CENTRAL_URL || localEnv.CENTRAL_URL || 'https://kiosko.cyrshop.app',
+  centralUrl: process.env.CENTRAL_URL || localEnv.CENTRAL_URL || 'http://127.0.0.1:8000',
   kioskApiToken: process.env.KIOSK_API_TOKEN || localEnv.KIOSK_API_TOKEN || '',
+  supabaseUrl: process.env.SUPABASE_URL || localEnv.SUPABASE_URL || '',
+  supabaseKey: process.env.SUPABASE_ANON_KEY || localEnv.SUPABASE_ANON_KEY || '',
   pollIntervalMs: Number(process.env.POLL_INTERVAL_MS || localEnv.POLL_INTERVAL_MS || 10000),
   kioskName: process.env.KIOSK_NAME || localEnv.KIOSK_NAME || 'Kiosko',
   printerName: process.env.PRINTER_NAME || localEnv.PRINTER_NAME || '',

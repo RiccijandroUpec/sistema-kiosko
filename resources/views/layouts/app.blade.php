@@ -16,7 +16,7 @@
     </head>
     <body class="font-sans antialiased">
         <div class="min-h-screen bg-gray-100">
-            @unless(request()->routeIs('admin.*') || request()->routeIs('dashboard') || request()->routeIs('profile.*'))
+            @unless(request()->routeIs('admin.*') || request()->routeIs('dashboard') || request()->routeIs('profile.*') || request()->routeIs('kiosk.panel.*'))
                 @include('layouts.navigation')
             @endunless
 

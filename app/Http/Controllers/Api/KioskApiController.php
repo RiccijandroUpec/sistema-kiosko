@@ -3,24 +3,25 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Kiosk;
-use App\Models\Payment;
-use App\Models\PrintJob;
+use App\Models\Kiosko;
+use App\Models\OrdenImpresion;
+use App\Models\TransaccionPago;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class KioskApiController extends Controller
 {
-    protected function resolveKiosk(Request $request): ?Kiosk
+    protected function resolveKiosk(Request $request): ?Kiosko
     {
+        // El token API en la nueva arquitectura es el propio UUID del kiosko
         $token = (string) $request->header('X-Kiosk-Token', $request->input('api_token', ''));
 
-        if ($token === '') {
+        if (empty($token)) {
             return null;
         }
 
-        return Kiosk::where('api_token', $token)->first();
+        return Kiosko::find($token);
     }
 
     protected function unauthorized(): JsonResponse
@@ -40,18 +41,18 @@ class KioskApiController extends Controller
         }
 
         $kiosk->update([
-            'estado_conexion' => 'online',
-            'last_seen_at' => now(),
+            'estado' => 'activo',
+            'ultima_conexion' => now(),
         ]);
 
         return response()->json([
             'success' => true,
             'data' => [
                 'id' => $kiosk->id,
-                'nombre' => $kiosk->nombre,
-                'ubicacion' => $kiosk->ubicacion,
-                'estado_conexion' => $kiosk->estado_conexion,
-                'last_seen_at' => optional($kiosk->last_seen_at)->toDateTimeString(),
+                'nombre' => $kiosk->nombre_comercial,
+                'estado' => $kiosk->estado,
+                'nombre_cups' => $kiosk->nombre_cups,
+                'ultima_conexion' => optional($kiosk->ultima_conexion)->toDateTimeString(),
             ],
         ]);
     }
@@ -65,8 +66,8 @@ class KioskApiController extends Controller
         }
 
         $kiosk->update([
-            'estado_conexion' => 'online',
-            'last_seen_at' => now(),
+            'estado' => 'activo',
+            'ultima_conexion' => now(),
         ]);
 
         return response()->json([
@@ -85,16 +86,17 @@ class KioskApiController extends Controller
             return $this->unauthorized();
         }
 
-        $jobs = PrintJob::with(['pdfFile', 'payment'])
-            ->where('kiosk_id', $kiosk->id)
-            ->where('status', 'printing')
+        // Obtener órdenes pagadas que están listas para imprimirse o en proceso
+        $jobs = OrdenImpresion::with(['cliente'])
+            ->where('kiosko_id', $kiosk->id)
+            ->whereIn('estado', ['pagado', 'imprimiendo'])
             ->orderBy('created_at')
             ->get()
-            ->map(fn (PrintJob $job) => $this->jobPayload($job));
+            ->map(fn (OrdenImpresion $job) => $this->jobPayload($job));
 
         $kiosk->update([
-            'estado_conexion' => 'online',
-            'last_seen_at' => now(),
+            'estado' => 'activo',
+            'ultima_conexion' => now(),
         ]);
 
         return response()->json([
@@ -103,131 +105,121 @@ class KioskApiController extends Controller
         ]);
     }
 
-    public function showJob(Request $request, PrintJob $printJob): JsonResponse
+    public function showJob(Request $request, OrdenImpresion $printJob): JsonResponse
     {
         $kiosk = $this->resolveKiosk($request);
 
-        if (!$kiosk || (int) $printJob->kiosk_id !== (int) $kiosk->id) {
+        if (!$kiosk || $printJob->kiosko_id !== $kiosk->id) {
             return $this->unauthorized();
         }
 
         return response()->json([
             'success' => true,
-            'data' => $this->jobPayload($printJob->load(['pdfFile', 'payment'])),
+            'data' => $this->jobPayload($printJob),
         ]);
     }
 
-    public function downloadPdf(Request $request, PrintJob $printJob)
+    public function downloadPdf(Request $request, OrdenImpresion $printJob)
     {
         $kiosk = $this->resolveKiosk($request);
 
-        if (!$kiosk || (int) $printJob->kiosk_id !== (int) $kiosk->id) {
+        if (!$kiosk || $printJob->kiosko_id !== $kiosk->id) {
             return $this->unauthorized();
         }
 
-        $pdfFile = $printJob->pdfFile;
+        $filePath = str_replace(asset('storage/'), '', $printJob->archivo_url);
+        $filePath = ltrim(parse_url($filePath, PHP_URL_PATH), '/');
 
-        if (!$pdfFile || !Storage::disk('public')->exists($pdfFile->file_path)) {
+        // Si es una URL externa de Supabase
+        if (str_starts_with($printJob->archivo_url, 'http') && !str_contains($printJob->archivo_url, asset('storage'))) {
+            // El agente local la descarga directamente desde la URL pública de Supabase.
+            // Para mantener compatibilidad con este endpoint redireccionamos:
+            return redirect()->away($printJob->archivo_url);
+        }
+
+        if (!Storage::disk('public')->exists($filePath)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Archivo no encontrado.',
+                'message' => 'Archivo no encontrado localmente.',
             ], 404);
         }
 
-        return Storage::disk('public')->download($pdfFile->file_path, $pdfFile->original_name);
+        return Storage::disk('public')->download($filePath);
     }
 
-    public function completeJob(Request $request, PrintJob $printJob): JsonResponse
+    public function completeJob(Request $request, OrdenImpresion $printJob): JsonResponse
     {
         $kiosk = $this->resolveKiosk($request);
 
-        if (!$kiosk || (int) $printJob->kiosk_id !== (int) $kiosk->id) {
+        if (!$kiosk || $printJob->kiosko_id !== $kiosk->id) {
             return $this->unauthorized();
         }
 
-        $validated = $request->validate([
-            'notes' => 'nullable|string|max:500',
-        ]);
-
-        $printJob->loadMissing('payment');
         $printJob->update([
-            'status' => 'completed',
-            'printed_at' => now(),
+            'estado' => 'completado',
         ]);
 
-        if ($printJob->payment && $printJob->payment->status !== 'confirmed') {
-            $printJob->payment->update([
-                'status' => 'confirmed',
-                'notes' => $validated['notes'] ?? $printJob->payment->notes,
-            ]);
-        }
+        // Confirmar la transacción asociada si existe
+        TransaccionPago::where('orden_id', $printJob->id)->update([
+            'estado' => 'completado',
+        ]);
 
         $kiosk->update([
-            'estado_conexion' => 'online',
-            'last_seen_at' => now(),
+            'estado' => 'activo',
+            'ultima_conexion' => now(),
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Trabajo completado correctamente.',
-            'data' => $this->jobPayload($printJob->load(['pdfFile', 'payment'])),
+            'data' => $this->jobPayload($printJob),
         ]);
     }
 
-    public function markPrinting(Request $request, PrintJob $printJob): JsonResponse
+    public function markPrinting(Request $request, OrdenImpresion $printJob): JsonResponse
     {
         $kiosk = $this->resolveKiosk($request);
 
-        if (!$kiosk || (int) $printJob->kiosk_id !== (int) $kiosk->id) {
+        if (!$kiosk || $printJob->kiosko_id !== $kiosk->id) {
             return $this->unauthorized();
         }
 
-        if ($printJob->status !== 'printing') {
-            return response()->json([
-                'success' => false,
-                'message' => 'El trabajo no está en cola de impresión.',
-            ], 422);
-        }
+        $printJob->update([
+            'estado' => 'imprimiendo',
+        ]);
 
         $kiosk->update([
-            'estado_conexion' => 'online',
-            'last_seen_at' => now(),
+            'estado' => 'activo',
+            'ultima_conexion' => now(),
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Trabajo confirmado por el kiosko.',
-            'data' => $this->jobPayload($printJob->load(['pdfFile', 'payment'])),
+            'message' => 'Trabajo marcado como imprimiendo.',
+            'data' => $this->jobPayload($printJob),
         ]);
     }
 
-    protected function jobPayload(PrintJob $job): array
+    protected function jobPayload(OrdenImpresion $job): array
     {
         return [
             'id' => $job->id,
-            'job_reference' => $job->job_reference,
-            'kiosk_id' => $job->kiosk_id,
-            'status' => $job->status,
-            'copies' => $job->copies,
-            'color_type' => $job->color_type,
-            'paper_size' => $job->paper_size,
-            'orientation' => $job->orientation,
-            'cost' => $job->cost,
-            'paid' => (bool) $job->paid,
-            'printed_at' => optional($job->printed_at)?->toDateTimeString(),
-            'created_at' => optional($job->created_at)?->toDateTimeString(),
-            'pdf_file' => $job->pdfFile ? [
-                'id' => $job->pdfFile->id,
-                'original_name' => $job->pdfFile->original_name,
-                'pages_count' => $job->pdfFile->pages_count,
-                'download_url' => url("/api/kiosk/jobs/{$job->id}/pdf"),
-            ] : null,
-            'payment' => $job->payment ? [
-                'id' => $job->payment->id,
-                'reference_code' => $job->payment->reference_code,
-                'amount' => $job->payment->amount,
-                'status' => $job->payment->status,
-            ] : null,
+            'job_reference' => $job->id, // Usamos el ID de la orden como referencia
+            'kiosk_id' => $job->kiosko_id,
+            'status' => $job->estado,
+            'copies' => 1, // En el nuevo esquema "paginas" ya contiene (paginas_pdf * copias)
+            'color_type' => $job->color ? 'color' : 'bw',
+            'paper_size' => 'a4',
+            'orientation' => 'portrait',
+            'cost' => $job->costo_total,
+            'paid' => in_array($job->estado, ['pagado', 'imprimiendo', 'completado']),
+            'created_at' => optional($job->created_at)->toDateTimeString(),
+            'pdf_file' => [
+                'id' => $job->id,
+                'original_name' => 'documento.pdf',
+                'pages_count' => $job->paginas,
+                'download_url' => $job->archivo_url,
+            ],
         ];
     }
 }

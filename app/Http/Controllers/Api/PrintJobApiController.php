@@ -3,27 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\PrintJob;
-use App\Models\PdfFile;
-use App\Services\PrintService;
+use App\Models\OrdenImpresion;
+use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class PrintJobApiController extends Controller
 {
-    protected $printService;
-
-    public function __construct(PrintService $printService)
-    {
-        $this->printService = $printService;
-    }
-
     /**
      * Get all print jobs.
      */
     public function index(): JsonResponse
     {
-        $jobs = PrintJob::with('user', 'pdfFile')
+        $jobs = OrdenImpresion::with('cliente', 'kiosko')
             ->latest()
             ->paginate(20);
 
@@ -38,7 +30,7 @@ class PrintJobApiController extends Controller
      */
     public function show($id): JsonResponse
     {
-        $job = PrintJob::with('user', 'pdfFile')->find($id);
+        $job = OrdenImpresion::with('cliente', 'kiosko')->find($id);
 
         if (!$job) {
             return response()->json([
@@ -59,37 +51,28 @@ class PrintJobApiController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'pdf_file_id' => 'required|exists:pdf_files,id',
-            'user_id' => 'required|exists:users,id',
-            'kiosk_id' => 'nullable|exists:kiosks,id',
-            'copies' => 'required|integer|min:1',
-            'color_type' => 'required|in:bw,color',
-            'paper_size' => 'required|in:a4,letter,legal',
-            'orientation' => 'required|in:portrait,landscape',
+            'cliente_id' => 'required|exists:clientes,id',
+            'kiosko_id' => 'required|exists:kioskos,id',
+            'archivo_url' => 'required|url',
+            'paginas' => 'required|integer|min:1',
+            'color' => 'required|boolean',
+            'costo_total' => 'required|numeric|min:0',
         ]);
 
-        $pdfFile = PdfFile::find($validated['pdf_file_id']);
-        
-        // Calculate cost
-        $baseCostPerPage = $validated['color_type'] === 'color' ? 0.20 : 0.05;
-        $totalCost = $pdfFile->pages_count * $validated['copies'] * $baseCostPerPage;
-
-        $printJob = PrintJob::create([
-            'user_id' => $validated['user_id'],
-            'kiosk_id' => $validated['kiosk_id'] ?? null,
-            'pdf_file_id' => $validated['pdf_file_id'],
-            'copies' => $validated['copies'],
-            'color_type' => $validated['color_type'],
-            'paper_size' => $validated['paper_size'],
-            'orientation' => $validated['orientation'],
-            'cost' => $totalCost,
-            'status' => 'pending',
+        $orden = OrdenImpresion::create([
+            'cliente_id' => $validated['cliente_id'],
+            'kiosko_id' => $validated['kiosko_id'],
+            'archivo_url' => $validated['archivo_url'],
+            'paginas' => $validated['paginas'],
+            'color' => $validated['color'],
+            'costo_total' => $validated['costo_total'],
+            'estado' => 'pendiente',
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Trabajo de impresión creado exitosamente',
-            'data' => $printJob->load('user', 'pdfFile'),
+            'data' => $orden->load('cliente', 'kiosko'),
         ], 201);
     }
 
@@ -98,7 +81,7 @@ class PrintJobApiController extends Controller
      */
     public function updateStatus($id, Request $request): JsonResponse
     {
-        $job = PrintJob::find($id);
+        $job = OrdenImpresion::find($id);
 
         if (!$job) {
             return response()->json([
@@ -108,14 +91,10 @@ class PrintJobApiController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => 'required|in:pending,printing,completed,cancelled',
+            'status' => 'required|in:pendiente,imprimiendo,completado,cancelado',
         ]);
 
-        $job->update(['status' => $validated['status']]);
-
-        if ($validated['status'] === 'completed') {
-            $job->update(['printed_at' => now()]);
-        }
+        $job->update(['estado' => $validated['status']]);
 
         return response()->json([
             'success' => true,
@@ -130,13 +109,13 @@ class PrintJobApiController extends Controller
     public function statistics(): JsonResponse
     {
         $stats = [
-            'total_jobs' => PrintJob::count(),
-            'pending_jobs' => PrintJob::where('status', 'pending')->count(),
-            'printing_jobs' => PrintJob::where('status', 'printing')->count(),
-            'completed_jobs' => PrintJob::where('status', 'completed')->count(),
-            'cancelled_jobs' => PrintJob::where('status', 'cancelled')->count(),
-            'total_revenue' => PrintJob::where('status', 'completed')->sum('cost'),
-            'total_pages' => PdfFile::sum('pages_count'),
+            'total_jobs' => OrdenImpresion::count(),
+            'pending_jobs' => OrdenImpresion::where('estado', 'pendiente')->count(),
+            'printing_jobs' => OrdenImpresion::where('estado', 'imprimiendo')->count(),
+            'completed_jobs' => OrdenImpresion::where('estado', 'completado')->count(),
+            'cancelled_jobs' => OrdenImpresion::where('estado', 'cancelado')->count(),
+            'total_revenue' => OrdenImpresion::where('estado', 'completado')->sum('costo_total'),
+            'total_pages' => OrdenImpresion::sum('paginas'),
         ];
 
         return response()->json([

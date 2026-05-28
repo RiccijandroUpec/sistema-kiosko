@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Kiosk;
+use App\Models\Kiosko;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,7 +17,7 @@ class EnsureKioskPinAuthenticated
             return redirect()->route('kiosk.panel.login.form');
         }
 
-        $kiosk = Kiosk::find($kioskId);
+        $kiosk = Kiosko::find($kioskId);
 
         if (!$kiosk) {
             $request->session()->forget('kiosk_access_id');

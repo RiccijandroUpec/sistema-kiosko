@@ -35,7 +35,7 @@ Route::post('/subir', [KioskoController::class, 'uploadPdf'])->name('kiosko.uplo
 Route::get('/whatsapp-qr', [KioskoController::class, 'generateQr'])->name('kiosko.whatsapp-qr');
 Route::get('/kioskos/{kiosk}/whatsapp-qr', [KioskoController::class, 'generateKioskQr'])->name('kiosko.whatsapp-qr.kiosk');
 
-Route::get('/configurar/{pdf}', [KioskoController::class, 'configureForm'])->name('kiosko.configure');
+Route::get('/configurar/{pdf}/{kiosko?}', [KioskoController::class, 'configureForm'])->name('kiosko.configure');
 Route::post('/crear-trabajo/{pdf}', [KioskoController::class, 'createPrintJob'])->name('kiosko.create-job');
 
 Route::get('/pago/{printJob}', [KioskoController::class, 'paymentForm'])->name('kiosko.payment');
@@ -55,8 +55,8 @@ Route::middleware('kiosk.pin')->group(function () {
     Route::post('/kiosko/panel/trabajos/{printJob}/cancelar', [KioskPanelController::class, 'cancelJob'])->name('kiosk.panel.cancel-job');
 });
 
-// ===== RUTAS DEL ADMIN (solo login de admin) =====
-
+// ===== RUTAS DEL ADMIN (Desactivadas por migración a FilamentPHP) =====
+/*
 Route::middleware('auth')->group(function () {
     // Profile del admin
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -106,6 +106,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/transacciones', [AdminController::class, 'transactions'])->name('admin.transactions');
     Route::get('/admin/estadisticas', [AdminController::class, 'statistics'])->name('admin.statistics');
 });
+*/
 
 // ===== RUTAS DE AUTENTICACIÓN =====
 require __DIR__.'/auth.php';
@@ -115,6 +116,9 @@ require __DIR__.'/auth.php';
 Route::post('/webhook-bot', [App\Http\Controllers\WhatsAppController::class, 'webhook']);
 Route::get('/webhook-bot', [App\Http\Controllers\WhatsAppController::class, 'webhook']);
 
-// PIN Login
-Route::get('/login/pin', [App\Http\Controllers\Auth\PinLoginController::class, 'showForm'])->name('login.pin');
-Route::post('/login/pin', [App\Http\Controllers\Auth\PinLoginController::class, 'login']);
+
+
+// Redirigir el dashboard legacy al panel de FilamentPHP
+Route::get('/dashboard', function () {
+    return redirect('/admin');
+})->name('dashboard');

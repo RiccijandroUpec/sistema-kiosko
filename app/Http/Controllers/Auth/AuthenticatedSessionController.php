@@ -16,7 +16,8 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): View
     {
-        return view('auth.login');
+        $kiosks = \App\Models\Kiosko::orderBy('nombre_comercial')->get(['id', 'nombre_comercial']);
+        return view('auth.login', compact('kiosks'));
     }
 
     /**
