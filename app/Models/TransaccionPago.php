@@ -18,6 +18,7 @@ class TransaccionPago extends Model
         'metodo',
         'referencia_externa',
         'estado',
+        'referencia_usuario',
     ];
 
     protected $casts = [

@@ -159,6 +159,13 @@ class KioskApiController extends Controller
             'estado' => 'completado',
         ]);
 
+        if ($printJob->cliente && $printJob->cliente->telefono !== 'web_guest') {
+            app(\App\Services\EvolutionService::class)->sendMessage(
+                $printJob->cliente->telefono,
+                "🎉 *¡Trabajo completado!*\nTu documento ya salió de la impresora y está listo. ¡Gracias por usar nuestro kiosko!"
+            );
+        }
+
         // Confirmar la transacción asociada si existe
         TransaccionPago::where('orden_id', $printJob->id)->update([
             'estado' => 'completado',
@@ -192,6 +199,13 @@ class KioskApiController extends Controller
             'estado' => 'activo',
             'ultima_conexion' => now(),
         ]);
+
+        if ($printJob->cliente && $printJob->cliente->telefono !== 'web_guest') {
+            app(\App\Services\EvolutionService::class)->sendMessage(
+                $printJob->cliente->telefono,
+                "🖨️ *Imprimiendo...*\nTu documento está saliendo en este momento de la impresora."
+            );
+        }
 
         return response()->json([
             'success' => true,

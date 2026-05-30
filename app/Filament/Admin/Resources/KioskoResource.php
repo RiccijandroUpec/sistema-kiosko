@@ -128,8 +128,10 @@ class KioskoResource extends Resource
                 Tables\Columns\TextColumn::make('id')
                     ->label('ID (UUID)')
                     ->fontFamily('mono')
+                    ->formatStateUsing(fn (string $state): string => substr($state, 0, 8) . '...')
                     ->copyable()
-                    ->toggleable(),
+                    ->copyableState(fn (string $state): string => $state)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('nombre_comercial')
                     ->label('Nombre')
                     ->searchable()
@@ -145,17 +147,20 @@ class KioskoResource extends Resource
                 Tables\Columns\TextColumn::make('precio_blanco_negro')
                     ->label('B/N')
                     ->money('USD')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('precio_color')
                     ->label('Color')
                     ->money('USD')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('nombre_cups')
                     ->label('Impresora CUPS')
                     ->searchable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\ColorColumn::make('color_tema')
-                    ->label('Tema'),
+                    ->label('Tema')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('ultima_conexion')
                     ->label('Última Conexión')
                     ->dateTime('d/m/Y H:i')
@@ -178,6 +183,12 @@ class KioskoResource extends Resource
                     ]),
             ])
             ->actions([
+                Tables\Actions\Action::make('poster')
+                    ->label('Imprimir Poster A4')
+                    ->icon('heroicon-o-printer')
+                    ->color('info')
+                    ->url(fn ($record) => route('kiosko.poster', $record))
+                    ->openUrlInNewTab(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])

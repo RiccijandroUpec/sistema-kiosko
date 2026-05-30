@@ -90,8 +90,8 @@
                             <span>Trabajos: {{ $kiosk->print_jobs_count }}</span>
                             <span>Pagos: {{ $kiosk->payments_count }}</span>
                             <span>Última conexión: {{ optional($kiosk->last_seen_at)->format('Y-m-d H:i') ?? 'Nunca' }}</span>
-                            <a href="{{ route('admin.kiosks.qr', $kiosk) }}" target="_blank" class="rounded-2xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">QR imprimible</a>
-                            <a href="{{ route('admin.kiosks.qr-pdf', $kiosk) }}" class="rounded-2xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Descargar PDF</a>
+                            <a href="{{ route('admin.kiosks.poster', $kiosk) }}" target="_blank" class="rounded-2xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">Imprimir Poster A4</a>
+                            <a href="{{ route('admin.kiosks.qr-pdf', $kiosk) }}" class="rounded-2xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Descargar PDF (Solo QR)</a>
                             <a href="{{ route('kiosko.whatsapp-qr.kiosk', $kiosk) }}" target="_blank" class="rounded-2xl bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">QR WhatsApp</a>
                             <form method="POST" action="{{ route('admin.kiosks.destroy', $kiosk) }}" onsubmit="return confirm('¿Eliminar este kiosko?')">
                                 @csrf

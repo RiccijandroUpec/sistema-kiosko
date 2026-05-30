@@ -3,6 +3,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { config } from './config.js';
+import ptp from 'pdf-to-printer';
 
 const execFileAsync = promisify(execFile);
 
@@ -34,13 +35,13 @@ export async function printPdf(filePath, printerName = null, options = {}) {
   }
 
   if (process.platform === 'win32') {
-    let script = '';
+    const printOptions = {};
     if (printerName) {
-      script = `Set-DefaultPrinter -Name '${printerName.replace(/'/g, "''")}'; Start-Process -FilePath '${filePath.replace(/'/g, "''")}' -Verb Print`;
-    } else {
-      script = `Start-Process -FilePath '${filePath.replace(/'/g, "''")}' -Verb Print`;
+      printOptions.printer = printerName;
     }
-    await execFileAsync('powershell.exe', ['-NoProfile', '-Command', script]);
+    
+    // Si necesitas ajustes adicionales de color podrías investigar las opciones soportadas
+    await ptp.print(filePath, printOptions);
     return;
   }
 

@@ -116,4 +116,9 @@ class KioskController extends Controller
 
         return 'data:image/png;base64,' . base64_encode($result->getString());
     }
+
+    public function poster(Kiosk $kiosk)
+    {
+        return view('admin.kiosk-poster', ['kiosk' => $kiosk]);
+    }
 }

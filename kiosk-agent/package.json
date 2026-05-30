@@ -9,6 +9,7 @@
     "dev": "node src/index.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.106.2"
+    "@supabase/supabase-js": "^2.106.2",
+    "pdf-to-printer": "^5.8.0"
   }
 }

@@ -141,7 +141,7 @@ class KioskoController extends Controller
             'cliente_id' => $cliente->id,
             'archivo_url' => asset('storage/' . $pdf->file_path),
             'paginas' => $pdf->pages_count * (int)$request->copies,
-            'color' => $request->color_type === 'color',
+            'color' => $request->color_type === 'color' ? 'true' : 'false',
             'costo_total' => $totalCost,
             'estado' => 'pendiente',
         ]);
@@ -173,6 +173,25 @@ class KioskoController extends Controller
             'printJob' => $printJob,
             'payment' => $payment,
         ]);
+    }
+
+    /**
+     * Guardar la referencia de transferencia del usuario.
+     */
+    public function saveReference(Request $request, OrdenImpresion $printJob)
+    {
+        $request->validate([
+            'referencia' => 'required|string|max:50',
+        ]);
+
+        $payment = $printJob->transacciones()->first();
+        if ($payment) {
+            $payment->update([
+                'referencia_usuario' => $request->referencia,
+            ]);
+        }
+
+        return back()->with('success', 'Referencia guardada. El sistema está verificando tu pago.');
     }
 
     /**
@@ -356,5 +375,10 @@ class KioskoController extends Controller
         $fallback = Kiosko::orderBy('nombre_comercial')->first();
 
         return $fallback ? $fallback->id : null;
+    }
+
+    public function poster(Kiosko $kiosk)
+    {
+        return view('admin.kiosk-poster', ['kiosk' => $kiosk]);
     }
 }

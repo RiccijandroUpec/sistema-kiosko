@@ -8,6 +8,7 @@ use App\Models\OrdenImpresion;
 use App\Models\TransaccionPago;
 use App\Services\EvolutionService;
 use App\Services\DeepseekService;
+use App\Services\GeminiVisionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -19,13 +20,16 @@ class WhatsAppController extends Controller
 {
     protected EvolutionService $evolutionService;
     protected DeepseekService $deepseekService;
+    protected GeminiVisionService $geminiVisionService;
 
     public function __construct(
         EvolutionService $evolutionService,
-        DeepseekService $deepseekService
+        DeepseekService $deepseekService,
+        GeminiVisionService $geminiVisionService
     ) {
         $this->evolutionService = $evolutionService;
         $this->deepseekService = $deepseekService;
+        $this->geminiVisionService = $geminiVisionService;
     }
 
     /**
@@ -104,7 +108,13 @@ class WhatsAppController extends Controller
                 $this->handleTextMessage($from, $text);
             }
 
-            // 2. Documento (PDF)
+            // 2. Imagen (Comprobante de Pago)
+            if (isset($message['imageMessage'])) {
+                $this->handleImageMessage($from, $messageId, $message['imageMessage']);
+                return response()->json(['status' => 'ok']);
+            }
+
+            // 3. Documento (PDF)
             if (isset($message['documentMessage'])) {
                 $this->handleDocumentMessage($from, $messageId, $message['documentMessage']);
             }
@@ -168,6 +178,83 @@ class WhatsAppController extends Controller
         // Si no hay config, enviar solo el texto de la IA
         $cleanResponse = trim(preg_replace('/\{.*\}/s', '', $aiResponse));
         $this->evolutionService->sendMessage($from, $cleanResponse ?: $aiResponse);
+    }
+
+    /**
+     * Manejar mensaje de imagen (Comprobantes)
+     */
+    protected function handleImageMessage(string $from, string $messageId, array $imageMessage)
+    {
+        try {
+            $this->evolutionService->sendMessage($from, "⏳ Estoy revisando tu comprobante con Inteligencia Artificial. Dame un momento...");
+
+            // Descargar la imagen
+            $imageContent = $this->evolutionService->downloadMedia($messageId);
+            
+            if (!$imageContent) {
+                $this->evolutionService->sendMessage($from, "❌ Hubo un problema al descargar la imagen. ¿Podrías enviarla de nuevo?");
+                return;
+            }
+
+            // Enviar a Gemini para extraer datos
+            $receiptData = $this->geminiVisionService->extractReceiptData($imageContent, $imageMessage['mimetype'] ?? 'image/jpeg');
+
+            if (!$receiptData || !isset($receiptData['monto'])) {
+                $this->evolutionService->sendMessage($from, "❌ No logré detectar el monto de la transferencia en esta imagen. Asegúrate de que los números se vean claros o escribe el número de comprobante en la web.");
+                return;
+            }
+
+            $montoExtraido = (float) $receiptData['monto'];
+            $referenciaExtraida = $receiptData['referencia'] ?? '';
+
+            // Buscar orden pendiente del cliente por el monto exacto
+            // Primero, buscamos al cliente
+            $cliente = Cliente::where('telefono', $from)->first();
+
+            $pendingPayment = null;
+
+            if ($cliente) {
+                // Buscar transacción del cliente
+                $pendingPayment = TransaccionPago::where('estado', 'pendiente')
+                    ->whereHas('orden', function ($query) use ($cliente) {
+                        $query->where('cliente_id', $cliente->id);
+                    })
+                    ->where('monto', $montoExtraido)
+                    ->first();
+            }
+
+            // Si no encuentra por cliente, buscar cualquier transacción pendiente con ese monto exacto (peligroso pero útil si es web_guest)
+            if (!$pendingPayment) {
+                $pendingPayment = TransaccionPago::where('estado', 'pendiente')
+                    ->where('monto', $montoExtraido)
+                    ->first();
+            }
+
+            if ($pendingPayment) {
+                $orden = $pendingPayment->orden;
+
+                // Marcar como pagado
+                $pendingPayment->update([
+                    'estado' => 'completado',
+                    'referencia_usuario' => $referenciaExtraida ?: 'WhatsApp Image'
+                ]);
+
+                $orden->update(['estado' => 'pagado']);
+
+                $this->evolutionService->sendMessage(
+                    $from, 
+                    "✅ *¡Pago confirmado exitosamente!*\nDetecté un pago de *$" . number_format($montoExtraido, 2) . "*.\n\n🖨️ Tu documento acaba de ser liberado y ya se está imprimiendo en el kiosko."
+                );
+                
+                Log::info('Pago liberado por Gemini Vision', ['monto' => $montoExtraido, 'ref' => $referenciaExtraida]);
+            } else {
+                $this->evolutionService->sendMessage($from, "⚠️ Detecté un pago por $" . number_format($montoExtraido, 2) . ", pero no encontré ninguna impresión pendiente con ese valor exacto. Acércate al administrador.");
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error processing Image from Evolution', ['error' => $e->getMessage()]);
+            $this->evolutionService->sendMessage($from, "Ocurrió un error interno al analizar la imagen.");
+        }
     }
 
     /**

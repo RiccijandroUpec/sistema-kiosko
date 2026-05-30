@@ -34,11 +34,14 @@ Route::get('/subir-pdf', [KioskoController::class, 'uploadForm'])->name('pdf.upl
 Route::post('/subir', [KioskoController::class, 'uploadPdf'])->name('kiosko.upload-pdf');
 Route::get('/whatsapp-qr', [KioskoController::class, 'generateQr'])->name('kiosko.whatsapp-qr');
 Route::get('/kioskos/{kiosk}/whatsapp-qr', [KioskoController::class, 'generateKioskQr'])->name('kiosko.whatsapp-qr.kiosk');
+Route::get('/kioskos/{kiosk}/poster', [KioskoController::class, 'poster'])->name('kiosko.poster');
+Route::view('/qrs', 'qrs')->name('kiosko.qrs');
 
 Route::get('/configurar/{pdf}/{kiosko?}', [KioskoController::class, 'configureForm'])->name('kiosko.configure');
 Route::post('/crear-trabajo/{pdf}', [KioskoController::class, 'createPrintJob'])->name('kiosko.create-job');
 
 Route::get('/pago/{printJob}', [KioskoController::class, 'paymentForm'])->name('kiosko.payment');
+Route::post('/pago/{printJob}/referencia', [KioskoController::class, 'saveReference'])->name('kiosko.save-reference');
 Route::get('/estado/{jobReference}', [KioskoController::class, 'status'])->name('kiosko.status');
 Route::get('/buscar', [KioskoController::class, 'searchForm'])->name('kiosko.search-form');
 Route::post('/buscar', [KioskoController::class, 'searchJob'])->name('kiosko.search');
@@ -105,9 +108,9 @@ Route::middleware('auth')->group(function () {
     // Transacciones y reportes
     Route::get('/admin/transacciones', [AdminController::class, 'transactions'])->name('admin.transactions');
     Route::get('/admin/estadisticas', [AdminController::class, 'statistics'])->name('admin.statistics');
+    Route::get('/admin/kioskos/{kiosk}/poster', [\App\Http\Controllers\Admin\KioskController::class, 'poster'])->name('admin.kiosks.poster');
 });
 */
-
 // ===== RUTAS DE AUTENTICACIÓN =====
 require __DIR__.'/auth.php';
 

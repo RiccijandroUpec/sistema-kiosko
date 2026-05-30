@@ -45,6 +45,13 @@ class KioskPanelController extends Controller
                 'estado' => 'pagado',
             ]);
 
+            if ($printJob->cliente && $printJob->cliente->telefono !== 'web_guest') {
+                app(\App\Services\EvolutionService::class)->sendMessage(
+                    $printJob->cliente->telefono,
+                    "✅ *Pago confirmado!*\nTu documento ha sido enviado a la impresora. 🖨️ En breve comenzará a imprimirse."
+                );
+            }
+
             $payment = $printJob->transacciones()->first();
             if ($payment) {
                 $payment->update(['estado' => 'completado']);
@@ -57,6 +64,13 @@ class KioskPanelController extends Controller
         $printJob->update([
             'estado' => 'completado',
         ]);
+
+        if ($printJob->cliente && $printJob->cliente->telefono !== 'web_guest') {
+            app(\App\Services\EvolutionService::class)->sendMessage(
+                $printJob->cliente->telefono,
+                "🎉 *¡Trabajo completado!*\nTu documento está listo en la bandeja de la impresora. ¡Gracias por usar nuestro kiosko!"
+            );
+        }
 
         $payment = $printJob->transacciones()->first();
         if ($payment) {
@@ -72,6 +86,13 @@ class KioskPanelController extends Controller
         $this->ensureOwnedByKiosk($printJob, $kiosk);
 
         $printJob->update(['estado' => 'cancelado']);
+
+        if ($printJob->cliente && $printJob->cliente->telefono !== 'web_guest') {
+            app(\App\Services\EvolutionService::class)->sendMessage(
+                $printJob->cliente->telefono,
+                "❌ *Trabajo cancelado*\nTu orden de impresión ha sido cancelada en el kiosko."
+            );
+        }
 
         $payment = $printJob->transacciones()->first();
         if ($payment) {
