@@ -10,3 +10,5 @@ Artisan::command('inspire', function () {
 use Illuminate\Support\Facades\Schedule;
 
 Schedule::command('app:verify-payments')->everyMinute()->withoutOverlapping();
+
+Schedule::command('clean:old-data')->daily();

@@ -3,13 +3,24 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "bin": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "panel": "node src/server.js",
-    "dev": "node src/index.js"
+    "dev": "node src/index.js",
+    "build:exe": "pkg . --targets node18-win-x64,node18-linux-x64 --out-path build"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
     "pdf-to-printer": "^5.8.0"
+  },
+  "pkg": {
+    "assets": [
+      "views/**/*",
+      "public/**/*"
+    ]
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
   }
 }

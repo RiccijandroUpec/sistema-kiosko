@@ -29,9 +29,14 @@ function readEnvFile(filePath) {
   return env;
 }
 
-const currentFile = fileURLToPath(import.meta.url);
-const rootDir = path.resolve(path.dirname(currentFile), '..');
-const localEnv = readEnvFile(path.join(rootDir, '.env'));
+const isPkg = typeof process.pkg !== 'undefined';
+const executableDir = process.cwd(); // Directorio donde corre el ejecutable o comando
+const srcDir = fileURLToPath(import.meta.url);
+const rootDir = isPkg ? executableDir : path.resolve(path.dirname(srcDir), '..');
+
+// Si está empaquetado, busca el .env al lado del .exe. Si no, en rootDir
+const envPath = isPkg ? path.join(executableDir, '.env') : path.join(rootDir, '.env');
+const localEnv = readEnvFile(envPath);
 
 export const config = {
   centralUrl: process.env.CENTRAL_URL || localEnv.CENTRAL_URL || 'http://127.0.0.1:8000',

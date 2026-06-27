@@ -167,6 +167,33 @@ class OrdenImpresionResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('reembolsar')
+                    ->label('Reembolsar')
+                    ->icon('heroicon-o-currency-dollar')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Reembolsar Dinero')
+                    ->modalDescription('¿Estás seguro que deseas reembolsar esta orden? Se cancelará y se notificará al cliente.')
+                    ->visible(fn ($record) => in_array($record->estado, ['pagado', 'imprimiendo', 'error']))
+                    ->action(function ($record) {
+                        $record->update(['estado' => 'reembolsado']);
+                        
+                        try {
+                            if ($record->cliente && $record->cliente->telefono && $record->cliente->telefono !== 'web_guest') {
+                                app(\App\Services\EvolutionService::class)->sendMessage(
+                                    $record->cliente->telefono,
+                                    "💸 *REEMBOLSO APROBADO*\nHemos reembolsado el dinero de tu impresión al método de pago original.\nLamentamos los inconvenientes."
+                                );
+                            }
+                        } catch (\Exception $e) {
+                            \Illuminate\Support\Facades\Log::error("Fallo al enviar notificación de reembolso: " . $e->getMessage());
+                        }
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Orden reembolsada correctamente')
+                            ->success()
+                            ->send();
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

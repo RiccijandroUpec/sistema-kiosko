@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Kiosko;
 use App\Models\OrdenImpresion;
 use App\Models\TransaccionPago;
+use App\Services\EvolutionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class KioskApiController extends Controller
@@ -211,6 +214,50 @@ class KioskApiController extends Controller
             'success' => true,
             'message' => 'Trabajo marcado como imprimiendo.',
             'data' => $this->jobPayload($printJob),
+        ]);
+    }
+
+    /**
+     * Reporta un error desde el kiosko (ej. error de impresora).
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  string  $printJob
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function reportError(Request $request, $printJobId)
+    {
+        $kiosk = $this->resolveKiosk($request);
+        $printJob = OrdenImpresion::findOrFail($printJobId);
+
+        if (!$kiosk || $printJob->kiosko_id !== $kiosk->id) {
+            return $this->unauthorized();
+        }
+
+        $errorMsg = $request->input('error', 'Error desconocido');
+
+        $printJob->update([
+            'estado' => 'error'
+        ]);
+
+        Log::error("Error reportado por Kiosko {$kiosk->nombre} en Orden {$printJob->id}: {$errorMsg}");
+
+        try {
+            $evolutionService = app(\App\Services\EvolutionService::class);
+            $adminPhone = env('ADMIN_PHONE');
+            
+            if ($adminPhone) {
+                $evolutionService->sendMessage($adminPhone, "🚨 *ALERTA KIOSKO*\nKiosko: {$kiosk->nombre}\nOrden: {$printJob->id}\nError: {$errorMsg}");
+            }
+
+            if ($printJob->cliente && $printJob->cliente->telefono && $printJob->cliente->telefono !== 'web_guest') {
+                $evolutionService->sendMessage($printJob->cliente->telefono, "⚠️ Tuvimos un inconveniente técnico al intentar imprimir tu documento. El administrador ya ha sido notificado y lo resolverá en breve. Tu orden está a salvo.");
+            }
+        } catch (\Exception $e) {
+            Log::error("Fallo al enviar notificación de WhatsApp sobre el error: " . $e->getMessage());
+        }
+
+        return response()->json([
+            'message' => 'Error reportado con éxito'
         ]);
     }
 

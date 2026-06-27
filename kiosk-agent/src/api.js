@@ -59,6 +59,13 @@ export async function completeJob(jobId, notes = '') {
   });
 }
 
+export async function reportJobError(jobId, errorMensaje = '') {
+  return requestJson(`${config.centralUrl}/api/kiosk/jobs/${jobId}/error`, {
+    method: 'POST',
+    body: JSON.stringify({ error: errorMensaje }),
+  });
+}
+
 export async function downloadPdf(jobId) {
   const response = await fetch(`${config.centralUrl}/api/kiosk/jobs/${jobId}/pdf`, {
     method: 'GET',

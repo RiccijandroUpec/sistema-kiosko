@@ -32,4 +32,7 @@ Route::prefix('kiosk')->group(function () {
     Route::get('/jobs/{printJob}/pdf', [KioskApiController::class, 'downloadPdf']);
     Route::post('/jobs/{printJob}/printing', [KioskApiController::class, 'markPrinting']);
     Route::post('/jobs/{printJob}/complete', [KioskApiController::class, 'completeJob']);
+    
+    // Rutas nuevas para manejo de errores
+    Route::post('/jobs/{printJob}/error', [KioskApiController::class, 'reportError']);
 });

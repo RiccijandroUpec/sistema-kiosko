@@ -6,8 +6,10 @@ import {
   fetchPendingJobs,
   markPrinting,
   sendHeartbeat,
+  reportJobError
 } from './api.js';
 import { printPdf, savePdf } from './printer.js';
+import { runCleanup } from './cleanup.js';
 import { log, setStatus, state } from './state.js';
 import { startWebPanel } from './server.js';
 import { createClient } from '@supabase/supabase-js';
@@ -43,6 +45,12 @@ async function processJob(job) {
     log(`Trabajo completado con éxito: ${job.job_reference}`);
   } catch (error) {
     log(`Error procesando orden ${job.id}: ${error.message}`, 'error');
+    try {
+      await reportJobError(job.id, error.message);
+      log(`Error reportado a la API central para la orden ${job.id}`);
+    } catch (reportError) {
+      log(`Fallo al reportar el error a la API: ${reportError.message}`, 'error');
+    }
   } finally {
     state.currentJob = null;
     processingJobs.delete(job.id);
@@ -178,7 +186,13 @@ async function mainLoop() {
       }
     } catch (error) {
       setStatus('degraded', { lastError: error.message });
-      log(`Error en el ciclo de sincronización: ${error.message}`, 'error');
+      log(`Error en el ciclo de sincronización (Modo offline / reintentando): ${error.message}`, 'error');
+    }
+
+    try {
+        await runCleanup();
+    } catch (e) {
+        log(`Error en limpieza: ${e.message}`, 'error');
     }
 
     await sleep(config.pollIntervalMs);

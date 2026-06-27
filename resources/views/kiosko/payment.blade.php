@@ -86,13 +86,14 @@
                     <div class="grid grid-cols-2 gap-4 items-center mb-4">
                         <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
                             <img src="{{ asset('images/qrpichincha.png') }}" alt="QR" class="w-44 h-44 mx-auto rounded-lg mb-2 shadow-sm">
-                            <p class="text-[10px] font-bold text-slate-800 uppercase tracking-tighter">Richard Stalyn Rodriguez</p>
+                            <p class="text-[10px] font-bold text-slate-800 uppercase tracking-tighter">Richard Rodriguez</p>
+                            <p class="text-[9px] font-semibold text-slate-500 uppercase tracking-tighter">CI: 0450022686</p>
                         </div>
                         <div class="space-y-3">
                             <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 relative group">
-                                <p class="text-[8px] font-bold text-slate-400 uppercase">Nº de Cuenta</p>
-                                <p class="font-mono font-bold text-slate-800 text-xs">2210344445</p>
-                                <button onclick="copyToClipboard('2210344445')" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white text-indigo-600 rounded-lg shadow-sm hover:scale-110 transition-all">
+                                <p class="text-[8px] font-bold text-slate-400 uppercase">Nº de Cuenta (Ahorros)</p>
+                                <p class="font-mono font-bold text-slate-800 text-xs">2211173265</p>
+                                <button onclick="copyToClipboard('2211173265')" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white text-indigo-600 rounded-lg shadow-sm hover:scale-110 transition-all">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                                 </button>
                             </div>
