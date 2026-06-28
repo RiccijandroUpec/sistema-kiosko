@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Support\Str;
 
 class Kiosko extends Model
 {
@@ -14,6 +15,7 @@ class Kiosko extends Model
 
     protected $fillable = [
         'nombre_comercial',
+        'slug',
         'estado',
         'precio_blanco_negro',
         'precio_color',
@@ -29,6 +31,28 @@ class Kiosko extends Model
         'precio_color' => 'decimal:2',
         'ultima_conexion' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Kiosko $kiosko) {
+            if (empty($kiosko->slug) && !empty($kiosko->nombre_comercial)) {
+                $kiosko->slug = static::generateUniqueSlug($kiosko->nombre_comercial);
+            }
+        });
+    }
+
+    protected static function generateUniqueSlug(string $name): string
+    {
+        $base = Str::slug($name);
+        $slug = $base;
+        $i = 1;
+
+        while (static::where('slug', $slug)->exists()) {
+            $slug = "{$base}-" . ++$i;
+        }
+
+        return $slug;
+    }
 
     public function ordenes()
     {

@@ -39,9 +39,9 @@
     <!-- Header Compacto -->
     <nav class="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100">
         <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-            <a href="{{ route('kiosko.index') }}" class="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold text-sm transition-colors">
+            <a href="{{ route('kiosko.search-form') }}" class="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold text-sm transition-colors">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                Inicio
+                Buscar otro pedido
             </a>
             <div class="px-4 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase tracking-widest">
                 Ref: {{ $printJob->id }}
@@ -144,7 +144,7 @@
                         <button onclick="location.reload()" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-center shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
                             ACTUALIZAR AHORA
                         </button>
-                        <a href="{{ route('kiosko.index') }}" class="w-full py-3 bg-slate-100 text-slate-500 rounded-xl font-bold text-xs text-center hover:bg-slate-200 transition-all">
+                        <a href="{{ route('kiosko.enter', $printJob->kiosko->slug) }}" class="w-full py-3 bg-slate-100 text-slate-500 rounded-xl font-bold text-xs text-center hover:bg-slate-200 transition-all">
                             CREAR NUEVO PEDIDO
                         </a>
                     </div>

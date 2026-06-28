@@ -21,9 +21,14 @@ Route::get('/data-deletion', function () {
     return view('data-deletion');
 })->name('data-deletion');
 
+// URL fija por kiosko (ej. /k/kiosko1) - evita que el cliente elija el lugar equivocado
+Route::get('/k/{slug}', [KioskoController::class, 'enterKiosk'])->name('kiosko.enter');
+
 // Flujo de impresión
-Route::get('/subir', [KioskoController::class, 'uploadForm'])->name('kiosko.upload');
-Route::get('/subir-pdf', [KioskoController::class, 'uploadForm'])->name('pdf.upload'); // Alias para el menú
+// La pagina generica de /subir ya no existe: cada kiosko entra por su propio /k/{slug}.
+// Estos dos nombres de ruta se mantienen porque otras vistas (panel, privacy-policy) los referencian.
+Route::get('/subir', fn () => redirect()->route('kiosko.index'))->name('kiosko.upload');
+Route::get('/subir-pdf', fn () => redirect()->route('kiosko.index'))->name('pdf.upload');
 Route::post('/subir', [KioskoController::class, 'uploadPdf'])->name('kiosko.upload-pdf');
 Route::get('/whatsapp-qr', [KioskoController::class, 'generateQr'])->name('kiosko.whatsapp-qr');
 Route::get('/kioskos/{kiosk}/whatsapp-qr', [KioskoController::class, 'generateKioskQr'])->name('kiosko.whatsapp-qr.kiosk');

@@ -20,13 +20,16 @@ Sistema híbrido para gestionar kioskos de impresión desatendidos. Los clientes
 
 ## Funcionalidades principales
 
+- **Cada kiosko tiene su propia URL fija** (`/k/{slug}`): el cliente entra directo a subir su archivo en la sede correcta, sin elegir nada ni confundirse de lugar. La home (`/`) ya no es un flujo de cliente — es la landing de negocio (pitch para dueños de local).
 - Pagos automatizados por foto de comprobante (WhatsApp + Gemini Vision)
-- Pagos automatizados por correo (revisión IMAP periódica)
+- Pagos automatizados por correo (revisión IMAP periódica, con búsqueda optimizada por referencia en el servidor)
 - Bot de WhatsApp (Evolution API): recibe PDFs, cotiza, cobra y da seguimiento
-- Panel admin (Filament): gestión de órdenes, kioskos, reembolsos
+- Panel admin (Filament): gestión de órdenes, kioskos, reembolsos — login unificado en `/login` con 3 modos (PIN de kiosko, email/password de admin, PIN de admin)
+- **Copias, rango de páginas personalizado, color/B-N y orientación se respetan de verdad** al imprimir (antes eran solo decorativos en pantalla: se cobraba por N copias pero solo se imprimía 1, por ejemplo)
 - Reporte de errores de impresión desde el kiosko al panel, con notificación al cliente y al administrador
+- **Alertas automáticas por WhatsApp al admin**: kiosko desconectado (sin heartbeat 5+ min), pago sin verificar atascado (25+ min), o si la verificación de correos falla
 - Limpieza automática diaria de órdenes y archivos con más de 48h (BD y Supabase Storage)
-- Cálculo de costos según páginas, copias y color
+- Cálculo de costos según páginas realmente impresas (respeta el rango personalizado), copias y color
 - PDFs respaldados en Supabase Storage (no se pierden si el servidor se redespliega)
 - Rate limiting en login por PIN, liberar orden por PIN y API de kioskos
 
@@ -124,12 +127,28 @@ No se necesita una base de datos de Railway: ambos servicios usan el mismo proye
 - Rate limiting (`throttle`) en login por PIN del panel de kiosko, liberar orden por PIN, y la API de kioskos/webhook.
 - Subida a Supabase Storage solo con `service_role` key desde el servidor — nunca con la `anon key`.
 
+## Tests
+
+```bash
+php artisan test
+```
+
+Corren contra SQLite en memoria (`phpunit.xml`), nunca contra la base de datos real. Cubren lo más crítico del negocio:
+- `PrintJobCreationTest` — cálculo de costos (documento completo, rango personalizado, rango inválido)
+- `KioskApiTest` — autenticación, heartbeat, `pendingJobs`, descarga de PDF (local y externa), `completeJob`, `reportError`
+- `CheckSystemHealthCommandTest` — alertas de kiosko desconectado y pago atascado (sin duplicarse)
+
+Los 14 tests que siguen fallando (`Tests\Feature\Auth\*`, `ProfileTest`) son el scaffolding por defecto de Laravel — prueban rutas (`/login` clásico, `/profile`, registro, reset de password) desactivadas desde la migración a FilamentPHP. No es una regresión, nunca se reconectaron.
+
 ## Estado actual y pendientes
 
-**Funciona y está probado:** flujo de pago por WhatsApp/correo, panel admin, impresión vía kiosk-agent, storage persistente en Supabase, despliegue en Railway (web + evolution-api).
+**Funciona y está probado en vivo:** flujo completo de pago por WhatsApp/correo, panel admin, impresión real vía kiosk-agent (con copias/rango/color/orientación correctos), storage persistente en Supabase, alertas por WhatsApp, despliegue en Railway (web + evolution-api).
 
 **Pendiente / conocido:**
-- Sin tests para la lógica de negocio real (órdenes, pagos, WhatsApp). Los tests actuales son el scaffolding por defecto de Laravel (auth/perfil), y la mitad fallan porque esas rutas (`/login`, `/profile`, registro, reset de password) están desactivadas desde la migración a FilamentPHP — no es una regresión, nunca se reconectaron.
-- Quedan controladores de autenticación huérfanos sin usar (`RegisteredUserController`, `PasswordResetLinkController`, `PinLoginController`, etc.) — no rompen nada, pero son código muerto sin limpiar.
+- `php artisan serve` es de un solo hilo — en una sesión de prueba real, el tráfico de WhatsApp llegando seguido fue suficiente para saturarlo y bloquear otras peticiones. Railway corre lo mismo en producción. Para más volumen, cambiar a nginx+php-fpm o varios workers.
+- El kiosk-agent no se recupera solo si falla la autenticación o se cae — hay que reiniciarlo a mano.
+- Las alertas dependen 100% de WhatsApp (Evolution API): si esa pieza se cae, no hay ningún aviso de respaldo (correo, etc.).
+- Quedan controladores de autenticación huérfanos sin usar (`RegisteredUserController`, `PasswordResetLinkController`, etc.) — no rompen nada, pero son código muerto sin limpiar.
 - Un solo número/instancia de WhatsApp (Evolution API) — no escala a muchos kioskos simultáneos sin arquitectura adicional.
 - Sin backups automáticos ni error tracking (Sentry u otro) configurado.
+- Hay PDFs de clientes reales en el historial de git (`kiosk-agent/downloads`/`output`, de antes del `.gitignore`) — pendiente de limpiar si importa la privacidad de esos archivos.

@@ -16,26 +16,8 @@
 </head>
 <body class="bg-slate-50 text-slate-900 antialiased" x-data="paymentPIN()">
     
-    <!-- Header Ultra-Compacto -->
-    <div class="bg-white border-b border-slate-100 sticky top-0 z-50">
-        <div class="max-w-6xl mx-auto px-6 py-2">
-            <div class="flex items-center justify-center gap-6">
-                <div class="flex items-center gap-2 opacity-50">
-                    <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold bg-emerald-500 text-white">✓</div>
-                    <span class="text-[9px] font-bold uppercase tracking-widest">Archivo</span>
-                </div>
-                <div class="w-8 h-[1px] bg-slate-200"></div>
-                <div class="flex items-center gap-2">
-                    <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold bg-indigo-600 text-white ring-2 ring-indigo-100">3</div>
-                    <span class="text-[9px] font-bold text-indigo-600 uppercase tracking-widest">Pago</span>
-                </div>
-                <div class="w-8 h-[1px] bg-slate-100"></div>
-                <div class="flex items-center gap-2 text-slate-300">
-                    <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border border-slate-200">4</div>
-                    <span class="text-[9px] font-bold uppercase tracking-widest">Listo</span>
-                </div>
-            </div>
-        </div>
+    <div class="sticky top-0 z-50">
+        <x-step-indicator :current="3" />
     </div>
 
     <main class="max-w-6xl mx-auto px-4 py-4 md:py-6 no-scroll-pc flex items-center">
@@ -121,9 +103,10 @@
                     
                     <form method="POST" action="{{ route('kiosko.save-reference', $printJob->id) }}" class="bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-inner mt-2">
                         @csrf
-                        <label class="block text-[10px] font-bold text-slate-700 uppercase mb-2">¿Ya transferiste? Ingresa el comprobante:</label>
+                        <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1">¿Ya transferiste? Confirma el código:</label>
+                        <p class="text-[9px] text-slate-500 mb-2">Debe ser el <strong>mismo código "Concepto"</strong> que usaste en tu transferencia, para que lo encontremos en el correo de tu banco.</p>
                         <div class="flex gap-2">
-                            <input type="text" name="referencia" required placeholder="Ej: 000123456" class="w-full text-xs rounded-lg border-slate-300 focus:ring-indigo-500 focus:border-indigo-500 px-3 py-2">
+                            <input type="text" name="referencia" required value="{{ strtoupper(substr($payment->id, 0, 8)) }}" placeholder="Ej: {{ strtoupper(substr($payment->id, 0, 8)) }}" class="w-full text-xs rounded-lg border-slate-300 focus:ring-indigo-500 focus:border-indigo-500 px-3 py-2 font-mono">
                             <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors">
                                 Validar
                             </button>

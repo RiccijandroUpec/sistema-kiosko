@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Controllers\Auth\PinLoginController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -11,6 +12,12 @@ Route::middleware('guest')->group(function () {
         ->name('login');
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
+    // Acceso rapido de administrador por PIN (alternativa a email/password)
+    Route::get('login-pin', [PinLoginController::class, 'showForm'])->name('login.pin.form');
+    Route::post('login-pin', [PinLoginController::class, 'login'])
+        ->middleware('throttle:5,1')
+        ->name('login.pin');
 });
 
 Route::middleware('auth')->group(function () {

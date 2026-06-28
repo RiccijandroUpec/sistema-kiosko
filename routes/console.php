@@ -11,4 +11,6 @@ use Illuminate\Support\Facades\Schedule;
 
 Schedule::command('app:verify-payments')->everyMinute()->withoutOverlapping();
 
+Schedule::command('app:check-system-health')->everyFiveMinutes()->withoutOverlapping();
+
 Schedule::command('clean:old-data')->daily();

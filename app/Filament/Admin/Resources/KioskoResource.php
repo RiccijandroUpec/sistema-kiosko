@@ -33,6 +33,13 @@ class KioskoResource extends Resource
                         ->label('ID del Kiosko (UUID)')
                         ->disabled()
                         ->visible(fn ($record) => $record !== null),
+                    Forms\Components\TextInput::make('slug')
+                        ->label('URL fija del kiosko')
+                        ->disabled()
+                        ->visible(fn ($record) => $record !== null)
+                        ->helperText(fn ($record) => $record
+                            ? url('/k/' . $record->slug) . ' — comparte este link, así el cliente nunca elige el lugar equivocado. No se puede editar a propósito: si la cambias, el QR/cartel ya impreso de este kiosko deja de funcionar.'
+                            : null),
                     Grid::make(3)->schema([
                         Forms\Components\TextInput::make('nombre_comercial')
                             ->label('Nombre Comercial')

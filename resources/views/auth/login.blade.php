@@ -104,6 +104,12 @@
                     </x-primary-button>
                 </div>
             </form>
+
+            <div class="mt-4 text-center">
+                <a href="{{ route('login.pin.form') }}" class="text-[10px] font-semibold text-slate-400 hover:text-indigo-600">
+                    ¿Prefieres entrar con PIN de administrador?
+                </a>
+            </div>
         </div>
     </div>
 </x-guest-layout>

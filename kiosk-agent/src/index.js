@@ -39,6 +39,10 @@ async function processJob(job) {
 
     await printPdf(filePath, state.printerName, {
       colorType: job.color_type,
+      copies: job.copies,
+      pagesRange: job.pages_range,
+      orientation: job.orientation,
+      paperSize: job.paper_size,
     });
 
     await completeJob(job.id, 'Impreso desde kiosk-agent');

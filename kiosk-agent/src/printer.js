@@ -39,8 +39,34 @@ export async function printPdf(filePath, printerName = null, options = {}) {
     if (printerName) {
       printOptions.printer = printerName;
     }
-    
-    // Si necesitas ajustes adicionales de color podrías investigar las opciones soportadas
+
+    // Copias reales pagadas por el cliente (antes siempre se imprimía 1 sin importar lo pagado)
+    if (options.copies && options.copies > 1) {
+      printOptions.copies = options.copies;
+    }
+
+    // Rango de páginas personalizado (ej. "1-5,8"). Sin esto, siempre se imprimía el documento completo.
+    if (options.pagesRange) {
+      printOptions.pages = options.pagesRange;
+    }
+
+    if (options.orientation === 'portrait' || options.orientation === 'landscape') {
+      printOptions.orientation = options.orientation;
+    }
+
+    // Antes esta opción no se aplicaba en Windows: se imprimía con lo que la impresora
+    // tuviera configurado por defecto, sin importar si el cliente pagó color o B/N.
+    if (options.colorType === 'bw') {
+      printOptions.monochrome = true;
+    } else if (options.colorType === 'color') {
+      printOptions.monochrome = false;
+    }
+
+    const paperSizeMap = { a4: 'A4', letter: 'Letter', legal: 'Legal' };
+    if (options.paperSize && paperSizeMap[options.paperSize]) {
+      printOptions.paperSize = paperSizeMap[options.paperSize];
+    }
+
     await ptp.print(filePath, printOptions);
     return;
   }
@@ -49,6 +75,18 @@ export async function printPdf(filePath, printerName = null, options = {}) {
     const args = [];
     if (printerName) {
       args.push('-d', printerName);
+    }
+
+    if (options.copies && options.copies > 1) {
+      args.push('-n', String(options.copies));
+    }
+
+    if (options.pagesRange) {
+      args.push('-P', options.pagesRange);
+    }
+
+    if (options.orientation === 'landscape') {
+      args.push('-o', 'landscape');
     }
 
     // Opciones de color de CUPS

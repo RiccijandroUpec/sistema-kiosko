@@ -15,7 +15,7 @@ use Endroid\QrCode\Writer\PngWriter;
 class KioskoController extends Controller
 {
     /**
-     * Mostrar página de inicio del kiosko.
+     * Mostrar página de inicio (landing de negocio, no tiene flujo de cliente).
      */
     public function index()
     {
@@ -23,13 +23,25 @@ class KioskoController extends Controller
     }
 
     /**
-     * Mostrar formulario de subida de PDF.
+     * Entrar directamente a un kiosko especifico via su URL fija (/k/{slug}).
+     * Esta es la unica forma de llegar a la pagina de subida: evita que el
+     * cliente elija el lugar equivocado o caiga en una pagina generica sin kiosko.
      */
-    public function uploadForm(Request $request)
+    public function enterKiosk(string $slug)
     {
-        $this->captureKioskHintFromRequest($request);
+        $kiosko = Kiosko::where('slug', $slug)->first();
 
-        return view('kiosko.upload');
+        if (!$kiosko) {
+            return redirect()->route('kiosko.index')
+                ->withErrors(['kiosk' => 'No encontramos ese kiosko. Verifica el enlace con el encargado del local.']);
+        }
+
+        session([
+            'default_kiosk_id' => $kiosko->id,
+            'default_kiosk_location' => $kiosko->nombre_comercial,
+        ]);
+
+        return view('kiosko.upload', ['activeKiosk' => $kiosko]);
     }
 
     /**
@@ -114,6 +126,8 @@ class KioskoController extends Controller
             'color_type' => 'required|in:bw,color',
             'paper_size' => 'required|in:a4,letter,legal',
             'orientation' => 'required|in:portrait,landscape',
+            'page_selection' => 'nullable|in:all,custom',
+            'custom_pages' => 'nullable|string|max:50',
             'kiosk_id' => 'nullable|exists:kioskos,id',
         ]);
 
@@ -128,11 +142,29 @@ class KioskoController extends Controller
 
         $kiosko = Kiosko::findOrFail($resolvedKioskId);
 
-        // Calcular costo
+        // Resolver cuántas páginas únicas se van a imprimir realmente (respeta el rango personalizado)
+        $rangoPaginas = null;
+        $paginasAImprimir = $pdf->pages_count;
+
+        if ($request->input('page_selection') === 'custom' && $request->filled('custom_pages')) {
+            $rangoPaginas = preg_replace('/\s+/', '', $request->input('custom_pages'));
+            $paginasEnRango = $this->contarPaginasEnRango($rangoPaginas, $pdf->pages_count);
+
+            // Si el rango no resulta en ninguna página válida, no cobramos por algo que no existe.
+            if ($paginasEnRango > 0) {
+                $paginasAImprimir = $paginasEnRango;
+            } else {
+                $rangoPaginas = null;
+            }
+        }
+
+        $copias = (int) $request->copies;
+
+        // Calcular costo (en base a las páginas reales a imprimir, no siempre el PDF completo)
         $costBW = (float)$kiosko->precio_blanco_negro;
         $costColor = (float)$kiosko->precio_color;
         $costPerPage = $request->color_type === 'color' ? $costColor : $costBW;
-        $totalCost = $pdf->pages_count * (int)$request->copies * $costPerPage;
+        $totalCost = $paginasAImprimir * $copias * $costPerPage;
 
         // Registrar o encontrar el Cliente
         $cliente = \App\Models\Cliente::firstOrCreate(
@@ -149,7 +181,11 @@ class KioskoController extends Controller
             'kiosko_id' => $kiosko->id,
             'cliente_id' => $cliente->id,
             'archivo_url' => $archivoUrl,
-            'paginas' => $pdf->pages_count * (int)$request->copies,
+            'paginas' => $paginasAImprimir * $copias,
+            'copias' => $copias,
+            'rango_paginas' => $rangoPaginas,
+            'papel' => $request->paper_size,
+            'orientacion' => $request->orientation,
             'color' => $request->color_type === 'color' ? 'true' : 'false',
             'costo_total' => $totalCost,
             'estado' => 'pendiente',
@@ -318,29 +354,43 @@ class KioskoController extends Controller
         ]);
     }
 
-    /**
-     * Guarda una pista de kiosko (query param) para autoasignar en el flujo web.
-     */
-    private function captureKioskHintFromRequest(Request $request): void
-    {
-        $kioskId = $request->query('kiosk');
-        $kioskLocation = trim((string) $request->query('ubicacion', ''));
 
-        if (!$kioskId) {
-            if ($kioskLocation !== '') {
-                session(['default_kiosk_location' => $kioskLocation]);
+    /**
+     * Cuenta cuántas páginas únicas y válidas (entre 1 y $totalPaginas) hay en un
+     * rango tipo "1-5,8". Misma lógica que parsePageRange() en configure.blade.php,
+     * pero del lado del servidor: nunca confiamos en el total calculado por el cliente.
+     */
+    private function contarPaginasEnRango(string $rango, int $totalPaginas): int
+    {
+        $paginas = [];
+
+        foreach (explode(',', $rango) as $parte) {
+            $parte = trim($parte);
+            if ($parte === '') {
+                continue;
             }
 
-            return;
+            if (str_contains($parte, '-')) {
+                [$inicio, $fin] = array_pad(explode('-', $parte, 2), 2, null);
+                $inicio = (int) $inicio;
+                $fin = (int) $fin;
+                if ($inicio <= 0 || $fin <= 0) {
+                    continue;
+                }
+                for ($i = min($inicio, $fin); $i <= max($inicio, $fin); $i++) {
+                    if ($i >= 1 && $i <= $totalPaginas) {
+                        $paginas[$i] = true;
+                    }
+                }
+            } else {
+                $n = (int) $parte;
+                if ($n >= 1 && $n <= $totalPaginas) {
+                    $paginas[$n] = true;
+                }
+            }
         }
 
-        if (Kiosko::whereKey($kioskId)->exists()) {
-            session(['default_kiosk_id' => $kioskId]);
-        }
-
-        if ($kioskLocation !== '') {
-            session(['default_kiosk_location' => $kioskLocation]);
-        }
+        return count($paginas);
     }
 
     /**

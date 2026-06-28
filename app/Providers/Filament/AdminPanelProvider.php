@@ -26,7 +26,9 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->id('admin')
             ->path('admin')
-            ->login()
+            // Usamos nuestro propio /login (con PIN de kiosko + PIN/email de admin)
+            // en vez de la pagina de login generica que trae Filament por defecto.
+            ->login(fn () => redirect()->route('login'))
             ->colors([
                 'primary' => Color::Violet,
                 'gray'    => Color::Slate,

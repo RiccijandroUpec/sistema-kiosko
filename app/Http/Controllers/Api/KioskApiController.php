@@ -130,15 +130,21 @@ class KioskApiController extends Controller
             return $this->unauthorized();
         }
 
-        $filePath = str_replace(asset('storage/'), '', $printJob->archivo_url);
-        $filePath = ltrim(parse_url($filePath, PHP_URL_PATH), '/');
+        // Comparamos el host de la URL guardada contra nuestro propio host (config('app.url'),
+        // no asset()/url() que dependen de la petición actual y pueden no coincidir como texto
+        // aunque sean "el mismo" host) para decidir si el archivo es local o externo (Supabase).
+        $archivoHost = parse_url($printJob->archivo_url, PHP_URL_HOST);
+        $ourHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+        $isExternal = $archivoHost !== null && $archivoHost !== $ourHost;
 
-        // Si es una URL externa de Supabase
-        if (str_starts_with($printJob->archivo_url, 'http') && !str_contains($printJob->archivo_url, asset('storage'))) {
+        if ($isExternal) {
             // El agente local la descarga directamente desde la URL pública de Supabase.
             // Para mantener compatibilidad con este endpoint redireccionamos:
             return redirect()->away($printJob->archivo_url);
         }
+
+        $filePath = ltrim((string) parse_url($printJob->archivo_url, PHP_URL_PATH), '/');
+        $filePath = preg_replace('#^storage/#', '', $filePath);
 
         if (!Storage::disk('public')->exists($filePath)) {
             return response()->json([
@@ -268,10 +274,11 @@ class KioskApiController extends Controller
             'job_reference' => $job->id, // Usamos el ID de la orden como referencia
             'kiosk_id' => $job->kiosko_id,
             'status' => $job->estado,
-            'copies' => 1, // En el nuevo esquema "paginas" ya contiene (paginas_pdf * copias)
+            'copies' => $job->copias ?? 1,
+            'pages_range' => $job->rango_paginas, // null = imprimir todo el documento
             'color_type' => $job->color ? 'color' : 'bw',
-            'paper_size' => 'a4',
-            'orientation' => 'portrait',
+            'paper_size' => $job->papel ?? 'a4',
+            'orientation' => $job->orientacion ?? 'portrait',
             'cost' => $job->costo_total,
             'paid' => in_array($job->estado, ['pagado', 'imprimiendo', 'completado']),
             'created_at' => optional($job->created_at)->toDateTimeString(),

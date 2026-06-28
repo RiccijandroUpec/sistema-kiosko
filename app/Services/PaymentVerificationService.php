@@ -38,41 +38,46 @@ class PaymentVerificationService
             /** @var \Webklex\PHPIMAP\Folder $folder */
             $folder = $client->getFolder('INBOX');
 
-            // Obtener solo correos no leídos de los últimos 3 días (por seguridad)
-            $messages = $folder->query()->unseen()->since(now()->subDays(3))->get();
+            // Por cada pago pendiente, buscamos en el servidor (no descargamos todo
+            // el inbox) los correos no leidos de los ultimos 3 dias que contengan
+            // su referencia. Esto evita descargar el cuerpo de correos irrelevantes.
+            foreach ($pendingPayments as $payment) {
+                $referencia = trim($payment->referencia_usuario);
 
-            foreach ($messages as $message) {
-                // Obtener el texto del correo (puede venir en HTML o Texto plano)
-                $body = $message->hasHTMLBody() ? $message->getHTMLBody() : $message->getTextBody();
-                
-                // Limpiar el texto para facilitar la búsqueda
-                $cleanBody = strtolower(strip_tags($body));
+                if ($referencia === '') {
+                    continue;
+                }
 
-                foreach ($pendingPayments as $payment) {
-                    $referencia = strtolower(trim($payment->referencia_usuario));
-                    
-                    // Comprobar si la referencia está dentro del correo
-                    if (str_contains($cleanBody, $referencia)) {
-                        
-                        // Opcional pero recomendado: Verificar que el monto también coincida
-                        // Formateamos el monto como viene en los correos (ej. 0.25, 0,25, $0.25)
-                        $montoStr1 = number_format($payment->monto, 2, '.', '');
-                        $montoStr2 = number_format($payment->monto, 2, ',', '');
-                        
-                        if (str_contains($cleanBody, $montoStr1) || str_contains($cleanBody, $montoStr2)) {
-                            // ¡COINCIDENCIA EXACTA!
-                            $this->releasePrintJob($payment->orden, $payment);
-                            $releasedCount++;
-                            
-                            // Marcar el correo como leído para no volver a procesarlo
-                            $message->setFlag('SEEN');
-                            
-                            Log::info("Pago liberado automáticamente. Referencia: {$referencia}");
-                        }
+                $messages = $folder->query()
+                    ->unseen()
+                    ->since(now()->subDays(3))
+                    ->body($referencia)
+                    ->get();
+
+                foreach ($messages as $message) {
+                    // Obtener el texto del correo (puede venir en HTML o Texto plano)
+                    $body = $message->hasHTMLBody() ? $message->getHTMLBody() : $message->getTextBody();
+                    $cleanBody = strtolower(strip_tags($body));
+
+                    // Verificar que el monto también coincida (ej. 0.25, 0,25)
+                    $montoStr1 = number_format($payment->monto, 2, '.', '');
+                    $montoStr2 = number_format($payment->monto, 2, ',', '');
+
+                    if (str_contains($cleanBody, $montoStr1) || str_contains($cleanBody, $montoStr2)) {
+                        // ¡COINCIDENCIA EXACTA!
+                        $this->releasePrintJob($payment->orden, $payment);
+                        $releasedCount++;
+
+                        // Marcar el correo como leído para no volver a procesarlo
+                        $message->setFlag('SEEN');
+
+                        Log::info("Pago liberado automáticamente. Referencia: {$referencia}");
+
+                        break; // ya encontramos el correo de este pago, seguimos con el siguiente pago
                     }
                 }
             }
-            
+
             $client->disconnect();
 
         } catch (\Exception $e) {

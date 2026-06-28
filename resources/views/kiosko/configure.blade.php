@@ -11,7 +11,7 @@
         .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); }
         [x-cloak] { display: none !important; }
         @media (min-width: 1024px) {
-            .no-scroll-pc { height: calc(100vh - 65px); overflow: hidden; }
+            .no-scroll-pc { height: calc(100vh - 115px); overflow: hidden; }
         }
     </style>
 </head>
@@ -19,7 +19,7 @@
 
     <nav class="bg-white border-b border-slate-100 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-6 py-2 flex justify-between items-center">
-            <a href="{{ route('kiosko.index') }}" class="flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold text-[10px] uppercase tracking-widest transition-all">
+            <a href="javascript:history.back()" class="flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold text-[10px] uppercase tracking-widest transition-all">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                 Volver
             </a>
@@ -30,6 +30,8 @@
         </div>
     </nav>
 
+    <x-step-indicator :current="2" />
+
     <main class="max-w-7xl mx-auto px-4 py-4 no-scroll-pc flex items-center">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full items-center">
             
@@ -37,12 +39,11 @@
             <div class="hidden lg:block lg:col-span-7 xl:col-span-8">
                 <div class="bg-slate-200/40 rounded-[2rem] p-6 h-[75vh] overflow-y-auto space-y-6 scrollbar-hide flex flex-col items-center">
                     @for($i = 1; $i <= min($pdf->pages_count, 3); $i++)
-                    <div class="bg-white shadow-xl mx-auto transition-all duration-500 overflow-hidden relative flex items-center justify-center shrink-0" 
+                    <div class="bg-white shadow-xl mx-auto transition-all duration-500 overflow-hidden relative flex items-center justify-center shrink-0"
                          :class="orientation === 'landscape' ? 'aspect-[1.414/1] w-full max-w-[650px]' : 'aspect-[1/1.414] h-[65vh] w-auto'"
                          :style="colorType === 'bw' ? 'filter: grayscale(1) contrast(1.1)' : ''">
-                        <iframe src="{{ asset('storage/' . $pdf->file_path) }}#page={{ $i }}&toolbar=0&navpanes=0&scrollbar=0" 
-                                class="w-[115%] h-full border-none pointer-events-none transition-transform duration-500"
-                                :style="orientation === 'landscape' ? 'transform: rotate(-90deg) scale(1.4); width: 140%; height: 140%;' : 'transform: none;'"></iframe>
+                        <iframe src="{{ asset('storage/' . $pdf->file_path) }}#page={{ $i }}&toolbar=0&navpanes=0&scrollbar=0"
+                                class="absolute inset-0 w-full h-full border-none pointer-events-none"></iframe>
                         <div class="absolute top-3 right-3 bg-black/40 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-full z-20">PÁG {{ $i }}</div>
                     </div>
                     @endfor
@@ -51,7 +52,14 @@
 
             <!-- CONFIGURACIÓN -->
             <div class="lg:col-span-5 xl:col-span-4 space-y-4">
-                
+
+                @if ($defaultKioskLocation ?? null)
+                    <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-[1.5rem] px-4 py-2">
+                        <span class="text-base">📍</span>
+                        <p class="text-emerald-900 text-[11px] font-bold">Imprimiendo en: {{ $defaultKioskLocation }}</p>
+                    </div>
+                @endif
+
                 <div class="bg-indigo-600 rounded-[2rem] p-5 text-white shadow-xl relative overflow-hidden">
                     <p class="text-indigo-100 text-[9px] font-bold uppercase tracking-widest mb-1 opacity-80">Total Estimado</p>
                     <div class="flex items-baseline gap-2">
@@ -112,9 +120,10 @@
                             </select>
                         </div>
                         <div x-show="pageSelection === 'custom'" x-transition>
-                            <input type="text" name="custom_pages" x-model="customPages" placeholder="ej: 1-5, 8" 
+                            <input type="text" name="custom_pages" x-model="customPages" placeholder="ej: 1-5, 8"
                                    class="w-full bg-slate-50 border-none rounded-xl py-2 px-3 text-xs font-bold text-slate-800 focus:ring-1 focus:ring-indigo-500">
                         </div>
+                        <input type="hidden" name="page_selection" :value="pageSelection">
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
