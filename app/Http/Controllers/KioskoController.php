@@ -52,6 +52,10 @@ class KioskoController extends Controller
             $document = $parser->parseFile(storage_path('app/public/' . $path));
             $pages = count($document->getPages());
 
+            // Subir a Supabase Storage (persistente, sobrevive a redeploys)
+            $supabasePath = app(\App\Services\SupabaseStorageService::class)
+                ->upload(file_get_contents($file->getRealPath()), $filename);
+
             // Guardar en base de datos
             $pdfFile = PdfFile::create([
                 'filename' => $filename,
@@ -59,6 +63,7 @@ class KioskoController extends Controller
                 'email' => $request->email,
                 'pages_count' => $pages,
                 'file_path' => $path,
+                'supabase_path' => $supabasePath,
                 'file_size' => $file->getSize() / 1024, // en KB
             ]);
 
@@ -136,10 +141,14 @@ class KioskoController extends Controller
         );
 
         // Crear Orden de Impresión
+        $archivoUrl = $pdf->supabase_path
+            ? app(\App\Services\SupabaseStorageService::class)->publicUrl($pdf->supabase_path)
+            : asset('storage/' . $pdf->file_path);
+
         $orden = OrdenImpresion::create([
             'kiosko_id' => $kiosko->id,
             'cliente_id' => $cliente->id,
-            'archivo_url' => asset('storage/' . $pdf->file_path),
+            'archivo_url' => $archivoUrl,
             'paginas' => $pdf->pages_count * (int)$request->copies,
             'color' => $request->color_type === 'color' ? 'true' : 'false',
             'costo_total' => $totalCost,

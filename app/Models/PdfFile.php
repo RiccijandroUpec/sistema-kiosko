@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class PdfFile extends Model
@@ -21,14 +20,7 @@ class PdfFile extends Model
         'email',
         'pages_count',
         'file_path',
+        'supabase_path',
         'file_size',
     ];
-    
-    /**
-     * Get the print jobs associated with the PDF file.
-     */
-    public function printJobs(): HasMany
-    {
-        return $this->hasMany(PrintJob::class);
-    }
 }

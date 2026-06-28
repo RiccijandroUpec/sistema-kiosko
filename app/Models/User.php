@@ -57,19 +57,4 @@ class User extends Authenticatable
         return $this->hasMany(PdfFile::class);
     }
     
-    /**
-     * Get the print jobs owned by the user.
-     */
-    public function printJobs()
-    {
-        return $this->hasMany(PrintJob::class);
-    }
-
-    /**
-     * Get the transactions owned by the user.
-     */
-    public function transactions()
-    {
-        return $this->hasMany(Transaction::class);
-    }
 }

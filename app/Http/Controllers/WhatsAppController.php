@@ -9,11 +9,11 @@ use App\Models\TransaccionPago;
 use App\Services\EvolutionService;
 use App\Services\DeepseekService;
 use App\Services\GeminiVisionService;
+use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
 use Smalot\PdfParser\Parser;
 
 class WhatsAppController extends Controller
@@ -21,15 +21,18 @@ class WhatsAppController extends Controller
     protected EvolutionService $evolutionService;
     protected DeepseekService $deepseekService;
     protected GeminiVisionService $geminiVisionService;
+    protected SupabaseStorageService $supabaseStorage;
 
     public function __construct(
         EvolutionService $evolutionService,
         DeepseekService $deepseekService,
-        GeminiVisionService $geminiVisionService
+        GeminiVisionService $geminiVisionService,
+        SupabaseStorageService $supabaseStorage
     ) {
         $this->evolutionService = $evolutionService;
         $this->deepseekService = $deepseekService;
         $this->geminiVisionService = $geminiVisionService;
+        $this->supabaseStorage = $supabaseStorage;
     }
 
     /**
@@ -281,13 +284,13 @@ class WhatsAppController extends Controller
                 return;
             }
 
-            // Guardar archivo físicamente
+            // Guardar archivo físicamente (cache rápido del propio contenedor)
             $uniqueFileName = uniqid() . '_' . time() . '.pdf';
             $path = "pdfs/{$uniqueFileName}";
             Storage::disk('public')->put($path, $fileContent);
 
-            // Subir a Supabase Storage (con fallback local)
-            $pdfUrl = $this->uploadToSupabase($fileContent, $uniqueFileName);
+            // Subir a Supabase Storage (persistente, sobrevive a redeploys)
+            $supabasePath = $this->supabaseStorage->upload($fileContent, $uniqueFileName);
 
             // Contar páginas
             $parser = new Parser();
@@ -301,6 +304,7 @@ class WhatsAppController extends Controller
                 'email' => null,
                 'pages_count' => $pages,
                 'file_path' => $path,
+                'supabase_path' => $supabasePath,
                 'file_size' => strlen($fileContent) / 1024, // KB
             ]);
 
@@ -332,39 +336,6 @@ class WhatsAppController extends Controller
         }
     }
 
-    private function uploadToSupabase(string $fileContent, string $uniqueFileName): string
-    {
-        $supabaseUrl = env('SUPABASE_URL');
-        $supabaseKey = env('SUPABASE_ANON_KEY');
-        
-        if (!empty($supabaseUrl) && !empty($supabaseKey)) {
-            $bucket = 'pdfs';
-            $uploadUrl = rtrim($supabaseUrl, '/') . "/storage/v1/object/{$bucket}/{$uniqueFileName}";
-            
-            try {
-                $response = Http::withHeaders([
-                    'Authorization' => "Bearer {$supabaseKey}",
-                    'apiKey' => $supabaseKey,
-                    'Content-Type' => 'application/pdf',
-                ])->withBody($fileContent, 'application/pdf')
-                  ->post($uploadUrl);
-                  
-                if ($response->successful()) {
-                    return rtrim($supabaseUrl, '/') . "/storage/v1/object/public/{$bucket}/{$uniqueFileName}";
-                }
-                
-                Log::warning('Supabase storage upload unsuccessful, using local storage fallback', [
-                    'status' => $response->status(),
-                    'body' => $response->body()
-                ]);
-            } catch (\Exception $e) {
-                Log::error('Supabase storage upload exception: ' . $e->getMessage());
-            }
-        }
-        
-        // Local fallback URL
-        return asset("storage/pdfs/{$uniqueFileName}");
-    }
 
     protected function promptForKioskSelection(string $from, array $pdfState, ?Kiosko $preferredKiosk = null): void
     {

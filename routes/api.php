@@ -2,17 +2,11 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\PrintJobApiController;
 use App\Http\Controllers\Api\KioskApiController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
-
-// Print Jobs API
-Route::apiResource('print-jobs', PrintJobApiController::class);
-Route::patch('/print-jobs/{id}/status', [PrintJobApiController::class, 'updateStatus']);
-Route::get('/print-jobs/statistics', [PrintJobApiController::class, 'statistics']);
 
 // Health check
 Route::get('/health', function () {
@@ -20,11 +14,13 @@ Route::get('/health', function () {
 });
 
 // WhatsApp Webhook (Evolution API)
-Route::post('/whatsapp/webhook', [\App\Http\Controllers\WhatsAppController::class, 'webhook']);
-Route::get('/whatsapp/webhook', [\App\Http\Controllers\WhatsAppController::class, 'webhook']);
+Route::middleware('throttle:120,1')->group(function () {
+    Route::post('/whatsapp/webhook', [\App\Http\Controllers\WhatsAppController::class, 'webhook']);
+    Route::get('/whatsapp/webhook', [\App\Http\Controllers\WhatsAppController::class, 'webhook']);
+});
 
 // Kiosk API
-Route::prefix('kiosk')->group(function () {
+Route::prefix('kiosk')->middleware('throttle:60,1')->group(function () {
     Route::post('/authenticate', [KioskApiController::class, 'authenticate']);
     Route::post('/heartbeat', [KioskApiController::class, 'heartbeat']);
     Route::get('/jobs/pending', [KioskApiController::class, 'pendingJobs']);

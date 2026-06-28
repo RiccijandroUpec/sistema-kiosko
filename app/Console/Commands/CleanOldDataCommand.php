@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Models\PdfFile;
+use App\Services\SupabaseStorageService;
 use Carbon\Carbon;
 
 class CleanOldDataCommand extends Command
@@ -28,7 +29,7 @@ class CleanOldDataCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(SupabaseStorageService $supabaseStorage)
     {
         $limitDate = Carbon::now()->subHours(48);
         $this->info("Buscando registros y archivos creados antes de: " . $limitDate->toDateTimeString());
@@ -46,12 +47,10 @@ class CleanOldDataCommand extends Command
                     $filesDeleted++;
                 }
 
-                // Las tablas relacionadas (OrdenImpresion, TransaccionPago) deberían tener cascade delete, 
-                // pero si no, podemos borrarlas aquí, aunque al borrar el modelo se dispararían los eventos.
-                // Como es una base de datos simple, el borrado en cascada (si está configurado) hará el resto,
-                // de lo contrario las órdenes de impresión quedarán huérfanas o fallará.
-                // Asegurémonos eliminando manualmente si no hay cascade.
-                $pdf->ordenes()->delete(); // Eliminar órdenes asociadas
+                if ($pdf->supabase_path) {
+                    $supabaseStorage->delete($pdf->supabase_path);
+                }
+
                 $pdf->delete(); // Eliminar el PDF de BD
             }
 
