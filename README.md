@@ -93,6 +93,8 @@ cp .env.example .env   # completar CENTRAL_URL y KIOSK_API_TOKEN
 npm start
 ```
 
+`npm start` corre el agente a través de un watchdog (`src/watchdog.js`): si el proceso se cae por cualquier motivo (excepción no atrapada, pérdida de red al arrancar) se reinicia solo con backoff, sin que alguien tenga que ir a la PC del kiosko a reiniciarlo a mano. Para correr el proceso sin el watchdog (debugging), usa `npm run start:direct`.
+
 ## Despliegue en Railway
 
 El `Dockerfile` raíz ya está listo para Railway (incluye `pdo_pgsql`, `mbstring`, `supervisord`). Servicios necesarios en el proyecto:
@@ -147,11 +149,16 @@ Los 14 tests que siguen fallando (`Tests\Feature\Auth\*`, `ProfileTest`) son el 
 
 **Funciona y está probado en vivo:** flujo completo de pago por WhatsApp/correo, panel admin, impresión real vía kiosk-agent (con copias/rango/color/orientación correctos), storage persistente en Supabase, alertas por WhatsApp, despliegue en Railway (web + evolution-api).
 
+**Resuelto recientemente:**
+- El contenedor web ahora corre **nginx + php-fpm** en vez de `php artisan serve` (que es de un solo hilo y se saturaba con tráfico real de WhatsApp, confirmado en pruebas en vivo). Sirven requests en paralelo de verdad; sin cambios en el código de la app.
+- El kiosk-agent ya no se queda muerto si falla la autenticación o se cae: reintenta con backoff y corre bajo un watchdog (`npm start`) que lo reinicia solo ante una excepción no atrapada.
+- `WhatsAppController` (webhook, matching de pagos por imagen) tenía cero tests; ahora tiene cobertura de los casos de fraude/seguridad corregidos (`tests/Feature/WhatsAppWebhookTest.php`).
+
 **Pendiente / conocido:**
-- `php artisan serve` es de un solo hilo — en una sesión de prueba real, el tráfico de WhatsApp llegando seguido fue suficiente para saturarlo y bloquear otras peticiones. Railway corre lo mismo en producción. Para más volumen, cambiar a nginx+php-fpm o varios workers.
-- El kiosk-agent no se recupera solo si falla la autenticación o se cae — hay que reiniciarlo a mano.
 - Las alertas dependen 100% de WhatsApp (Evolution API): si esa pieza se cae, no hay ningún aviso de respaldo (correo, etc.).
 - Quedan controladores de autenticación huérfanos sin usar (`RegisteredUserController`, `PasswordResetLinkController`, etc.) — no rompen nada, pero son código muerto sin limpiar.
 - Un solo número/instancia de WhatsApp (Evolution API) — no escala a muchos kioskos simultáneos sin arquitectura adicional.
 - Sin backups automáticos ni error tracking (Sentry u otro) configurado.
 - Hay PDFs de clientes reales en el historial de git (`kiosk-agent/downloads`/`output`, de antes del `.gitignore`) — pendiente de limpiar si importa la privacidad de esos archivos.
+- La verificación de pago sigue basada en OCR (WhatsApp) y parseo de correo (IMAP) en vez de una integración real con la pasarela de pago — es la fuente de la mayoría de los casos borde de fraude/latencia. Requiere gestión comercial con el banco/Deuna, no es solo código.
+- `PITCH_DECK.md` describe una arquitectura multi-tenant ("1000+ kiosks", Grafana, etc.) que todavía no existe: hoy es de un solo dueño/admin, con un único número de WhatsApp compartido.

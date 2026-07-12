@@ -5,7 +5,8 @@
   "type": "module",
   "bin": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node src/watchdog.js",
+    "start:direct": "node src/index.js",
     "panel": "node src/server.js",
     "dev": "node src/index.js",
     "build:exe": "pkg . --targets node18-win-x64,node18-linux-x64 --out-path build"
