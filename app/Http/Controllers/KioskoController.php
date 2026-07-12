@@ -226,7 +226,7 @@ class KioskoController extends Controller
     public function saveReference(Request $request, OrdenImpresion $printJob)
     {
         $request->validate([
-            'referencia' => 'required|string|max:50',
+            'referencia' => ['required', 'string', 'max:50', 'regex:/^[\p{L}\p{N}\-_ ]+$/u'],
         ]);
 
         $payment = $printJob->transacciones()->first();

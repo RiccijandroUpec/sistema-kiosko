@@ -13,9 +13,9 @@ class SupabaseStorageService
 
     public function __construct()
     {
-        $this->url = rtrim((string) env('SUPABASE_URL'), '/');
-        $this->serviceKey = (string) env('SUPABASE_SERVICE_KEY');
-        $this->bucket = (string) env('SUPABASE_STORAGE_BUCKET', 'pdfs');
+        $this->url = rtrim((string) config('supabase.url'), '/');
+        $this->serviceKey = (string) config('supabase.service_key');
+        $this->bucket = (string) config('supabase.storage_bucket', 'pdfs');
     }
 
     /**

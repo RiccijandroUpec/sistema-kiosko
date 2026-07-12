@@ -6,4 +6,9 @@ return [
     'instance' => env('EVOLUTION_INSTANCE', 'kiosko'),
     'whatsapp_number' => env('EVOLUTION_WHATSAPP_NUMBER', '+14155238886'),
     'whatsapp_message' => env('EVOLUTION_WHATSAPP_MESSAGE', 'Hola, quiero imprimir un PDF'),
+
+    // Secreto compartido para el webhook: hay que configurar la URL del webhook en
+    // Evolution API como https://tu-app.com/webhook-bot?secret=ESTE_VALOR
+    // Sin esto, cualquiera podria hacer POST al webhook simulando mensajes de WhatsApp.
+    'webhook_secret' => env('EVOLUTION_WEBHOOK_SECRET'),
 ];

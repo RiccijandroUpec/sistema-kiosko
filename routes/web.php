@@ -29,17 +29,17 @@ Route::get('/k/{slug}', [KioskoController::class, 'enterKiosk'])->name('kiosko.e
 // Estos dos nombres de ruta se mantienen porque otras vistas (panel, privacy-policy) los referencian.
 Route::get('/subir', fn () => redirect()->route('kiosko.index'))->name('kiosko.upload');
 Route::get('/subir-pdf', fn () => redirect()->route('kiosko.index'))->name('pdf.upload');
-Route::post('/subir', [KioskoController::class, 'uploadPdf'])->name('kiosko.upload-pdf');
+Route::post('/subir', [KioskoController::class, 'uploadPdf'])->middleware('throttle:20,1')->name('kiosko.upload-pdf');
 Route::get('/whatsapp-qr', [KioskoController::class, 'generateQr'])->name('kiosko.whatsapp-qr');
 Route::get('/kioskos/{kiosk}/whatsapp-qr', [KioskoController::class, 'generateKioskQr'])->name('kiosko.whatsapp-qr.kiosk');
 Route::get('/kioskos/{kiosk}/poster', [KioskoController::class, 'poster'])->name('kiosko.poster');
 Route::view('/qrs', 'qrs')->name('kiosko.qrs');
 
 Route::get('/configurar/{pdf}/{kiosko?}', [KioskoController::class, 'configureForm'])->name('kiosko.configure');
-Route::post('/crear-trabajo/{pdf}', [KioskoController::class, 'createPrintJob'])->name('kiosko.create-job');
+Route::post('/crear-trabajo/{pdf}', [KioskoController::class, 'createPrintJob'])->middleware('throttle:20,1')->name('kiosko.create-job');
 
 Route::get('/pago/{printJob}', [KioskoController::class, 'paymentForm'])->name('kiosko.payment');
-Route::post('/pago/{printJob}/referencia', [KioskoController::class, 'saveReference'])->name('kiosko.save-reference');
+Route::post('/pago/{printJob}/referencia', [KioskoController::class, 'saveReference'])->middleware('throttle:20,1')->name('kiosko.save-reference');
 Route::get('/estado/{jobReference}', [KioskoController::class, 'status'])->name('kiosko.status');
 Route::get('/buscar', [KioskoController::class, 'searchForm'])->name('kiosko.search-form');
 Route::post('/buscar', [KioskoController::class, 'searchJob'])->name('kiosko.search');

@@ -64,6 +64,7 @@ No se versionan los valores reales. Completa tu propio `.env` con:
 - `SUPABASE_STORAGE_BUCKET` — normalmente `pdfs`. El bucket debe existir y estar marcado como público (lectura pública; la escritura siempre va por `service_role`, sin importar el toggle de público).
 - `DEEPSEEK_API_KEY`, `GEMINI_API_KEY`
 - `EVOLUTION_API_BASE_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE`
+- `EVOLUTION_WEBHOOK_SECRET` — genera un valor random y configura el webhook en Evolution API como `https://tu-app.com/webhook-bot?secret=ESE_VALOR`. Sin esto, el webhook acepta peticiones de cualquiera sin verificar que vengan realmente de Evolution.
 - `IMAP_HOST`, `IMAP_USERNAME`, `IMAP_PASSWORD` (contraseña de aplicación, no la real)
 - `ADMIN_PHONE`
 
@@ -121,10 +122,12 @@ No se necesita una base de datos de Railway: ambos servicios usan el mismo proye
 
 ## Seguridad
 
-- La API de kioskos usa tokens Bearer por kiosko.
+- La API de kioskos usa un `api_token` propio por kiosko (columna separada, oculta en el modelo), **no** su UUID: el UUID aparece en URLs públicas (poster, QR, formulario de configuración), así que nunca sirve como credencial. El token real se ve/regenera desde el panel Filament (acción "Regenerar Token" en la tabla de Kioskos) y va en `KIOSK_API_TOKEN` del `.env` del kiosk-agent.
+- El webhook de WhatsApp (`/webhook-bot`) exige `EVOLUTION_WEBHOOK_SECRET` como query param (`?secret=...`) o header `X-Webhook-Secret`; sin él, cualquiera podría simular mensajes entrantes.
+- Verificación de pago por imagen (WhatsApp + Gemini Vision): un mismo comprobante no puede reutilizarse para liberar dos órdenes (se rechaza si esa referencia ya fue usada), y si no hay match por cliente solo se libera automáticamente cuando existe una única orden pendiente con ese monto exacto en todo el sistema.
 - `.env`, `.env.backup` y `.env.production` están en `.gitignore` — nunca se versionan credenciales.
 - Evolution API usa locks para evitar mensajes de WhatsApp duplicados o en bucle.
-- Rate limiting (`throttle`) en login por PIN del panel de kiosko, liberar orden por PIN, y la API de kioskos/webhook.
+- Rate limiting (`throttle`) en login por PIN del panel de kiosko (scoped al kiosko elegido), login PIN de admin, liberar orden por PIN, subida/creación de trabajos, y la API de kioskos/webhook.
 - Subida a Supabase Storage solo con `service_role` key desde el servidor — nunca con la `anon key`.
 
 ## Tests

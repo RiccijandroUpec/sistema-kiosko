@@ -13,7 +13,7 @@ class GeminiVisionService
      */
     public function extractReceiptData(string $base64Image, string $mimeType = 'image/jpeg'): ?array
     {
-        $apiKey = env('GEMINI_API_KEY');
+        $apiKey = config('gemini.api_key');
         if (empty($apiKey)) {
             Log::error('GEMINI_API_KEY no configurada');
             return null;

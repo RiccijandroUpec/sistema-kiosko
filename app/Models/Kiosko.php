@@ -23,7 +23,12 @@ class Kiosko extends Model
         'color_tema',
         'logo_url',
         'pin',
+        'api_token',
         'ultima_conexion',
+    ];
+
+    protected $hidden = [
+        'api_token',
     ];
 
     protected $casts = [
@@ -38,7 +43,19 @@ class Kiosko extends Model
             if (empty($kiosko->slug) && !empty($kiosko->nombre_comercial)) {
                 $kiosko->slug = static::generateUniqueSlug($kiosko->nombre_comercial);
             }
+
+            if (empty($kiosko->api_token)) {
+                $kiosko->api_token = Str::random(48);
+            }
         });
+    }
+
+    public function regenerateApiToken(): string
+    {
+        $token = Str::random(48);
+        $this->update(['api_token' => $token]);
+
+        return $token;
     }
 
     protected static function generateUniqueSlug(string $name): string

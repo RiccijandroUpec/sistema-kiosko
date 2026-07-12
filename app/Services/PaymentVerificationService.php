@@ -42,7 +42,10 @@ class PaymentVerificationService
             // el inbox) los correos no leidos de los ultimos 3 dias que contengan
             // su referencia. Esto evita descargar el cuerpo de correos irrelevantes.
             foreach ($pendingPayments as $payment) {
-                $referencia = trim($payment->referencia_usuario);
+                // Solo dejamos pasar letras/numeros/guiones/espacios: la referencia la
+                // escribe el cliente libremente y termina como criterio de busqueda IMAP
+                // crudo, asi que no debe poder contener comillas ni caracteres de control.
+                $referencia = trim((string) preg_replace('/[^\p{L}\p{N}\-_ ]+/u', '', (string) $payment->referencia_usuario));
 
                 if ($referencia === '') {
                     continue;
