@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     wget \
     supervisor \
+    nginx \
  && rm -rf /var/lib/apt/lists/*
 
 # PHP extensions
@@ -43,14 +44,19 @@ COPY . .
 # Build frontend assets (if present)
 RUN if [ -f package.json ]; then npm run build --if-present || true; fi
 
+# nginx sirve public/ y reenvia .php a php-fpm (en vez de "php artisan serve",
+# que es de un solo hilo y se satura con trafico real).
+RUN rm -f /etc/nginx/sites-enabled/default && \
+    cp /app/docker/nginx.conf /etc/nginx/conf.d/app.conf
+
 # Create required directories and set permissions
 RUN mkdir -p /app/storage/logs /app/storage/app/public /app/bootstrap/cache && \
     chown -R www-data:www-data /app && \
     chmod -R 755 /app && \
     chmod -R 775 /app/storage /app/bootstrap/cache && \
-    chmod +x /app/docker/entrypoint.sh /app/docker/run-web.sh /app/docker/run-scheduler.sh
+    chmod +x /app/docker/entrypoint.sh /app/docker/run-scheduler.sh
 
 EXPOSE 8080
 
-# Un solo contenedor corre web + worker + scheduler vía supervisord
+# Un solo contenedor corre nginx + php-fpm + worker + scheduler vía supervisord
 CMD ["/app/docker/entrypoint.sh"]

@@ -133,6 +133,26 @@ function setupSupabaseRealtime(kioskId) {
   }
 }
 
+// Reintenta la autenticacion inicial indefinidamente con backoff en vez de
+// matar el proceso: un servidor caido o una red inestable al arrancar la PC
+// del kiosko no debe requerir que alguien vaya a reiniciar el agente a mano.
+async function authenticateWithRetry() {
+  const maxDelayMs = 60000;
+  let delayMs = 5000;
+
+  while (true) {
+    try {
+      const auth = await authenticateKiosk();
+      return auth;
+    } catch (error) {
+      setStatus('error', { lastError: error.message });
+      log(`No se pudo autenticar el kiosko: ${error.message}. Reintentando en ${Math.round(delayMs / 1000)}s...`, 'error');
+      await sleep(delayMs);
+      delayMs = Math.min(delayMs * 2, maxDelayMs);
+    }
+  }
+}
+
 async function mainLoop() {
   if (!config.kioskApiToken) {
     log('Falta KIOSK_API_TOKEN en .env', 'error');
@@ -148,25 +168,17 @@ async function mainLoop() {
   log(`Agente iniciado: ${config.kioskName}`);
   log(`Conectando a: ${config.centralUrl}`);
 
-  let kioskId = null;
+  const auth = await authenticateWithRetry();
+  const kioskId = auth.data.id;
 
-  try {
-    const auth = await authenticateKiosk();
-    kioskId = auth.data.id;
-    
-    setStatus('online', {
-      kioskId: auth.data.id,
-      kioskName: auth.data.nombre,
-      printerName: auth.data.nombre_cups,
-      centralUrl: config.centralUrl,
-      lastHeartbeatAt: new Date().toISOString(),
-    });
-    log(`Autenticado como kiosko #${auth.data.id} (${auth.data.nombre})`);
-  } catch (error) {
-    setStatus('error', { lastError: error.message });
-    log(`No se pudo autenticar el kiosko: ${error.message}`, 'error');
-    process.exit(1);
-  }
+  setStatus('online', {
+    kioskId: auth.data.id,
+    kioskName: auth.data.nombre,
+    printerName: auth.data.nombre_cups,
+    centralUrl: config.centralUrl,
+    lastHeartbeatAt: new Date().toISOString(),
+  });
+  log(`Autenticado como kiosko #${auth.data.id} (${auth.data.nombre})`);
 
   // Setup WebSocket Listener
   setupSupabaseRealtime(kioskId);
@@ -202,6 +214,20 @@ async function mainLoop() {
     await sleep(config.pollIntervalMs);
   }
 }
+
+// No dejamos el proceso en un estado indefinido tras una excepcion no
+// atrapada: la logueamos y salimos limpio para que el watchdog (src/watchdog.js)
+// lo vuelva a levantar, en vez de quedar colgado silenciosamente.
+process.on('uncaughtException', (error) => {
+  log(`Excepcion no atrapada: ${error.message}`, 'error');
+  console.error(error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  log(`Promesa rechazada sin atrapar: ${reason instanceof Error ? reason.message : reason}`, 'error');
+  process.exit(1);
+});
 
 mainLoop().catch((error) => {
   console.error(error);

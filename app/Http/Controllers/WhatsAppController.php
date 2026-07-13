@@ -40,6 +40,15 @@ class WhatsAppController extends Controller
      */
     public function webhook(Request $request)
     {
+        if (!$this->isWebhookAuthentic($request)) {
+            Log::warning('Webhook de WhatsApp rechazado: secreto ausente o invalido', [
+                'ip' => $request->ip(),
+            ]);
+
+            // 404 en vez de 401/403 para no confirmarle a quien lo intenta que la ruta existe.
+            abort(404);
+        }
+
         Log::emergency('!!!!! WEBHOOK ACTIVADO - EL MENSAJE LLEGÓ !!!!!');
         $payload = $request->all();
         
@@ -63,6 +72,26 @@ class WhatsAppController extends Controller
         }
 
         return $this->handleIncomingMessage($data);
+    }
+
+    /**
+     * Verifica que la peticion traiga el secreto configurado en EVOLUTION_WEBHOOK_SECRET
+     * (como ?secret=... o header X-Webhook-Secret). Si no hay secreto configurado se
+     * deja pasar (modo desarrollo local), pero se avisa en el log para que se configure
+     * antes de exponer el webhook publicamente.
+     */
+    protected function isWebhookAuthentic(Request $request): bool
+    {
+        $expected = (string) config('evolution.webhook_secret', '');
+
+        if ($expected === '') {
+            Log::warning('EVOLUTION_WEBHOOK_SECRET no esta configurado: el webhook acepta peticiones sin verificar su origen.');
+            return true;
+        }
+
+        $provided = (string) ($request->query('secret') ?? $request->header('X-Webhook-Secret', ''));
+
+        return $provided !== '' && hash_equals($expected, $provided);
     }
 
     /**
@@ -208,7 +237,21 @@ class WhatsAppController extends Controller
             }
 
             $montoExtraido = (float) $receiptData['monto'];
-            $referenciaExtraida = $receiptData['referencia'] ?? '';
+            $referenciaExtraida = trim((string) ($receiptData['referencia'] ?? ''));
+
+            // Evitar que el mismo comprobante (reenviado o reutilizado) libere más de
+            // una orden: si esta referencia ya se usó para completar un pago, se rechaza.
+            if ($referenciaExtraida !== '' && TransaccionPago::where('estado', 'completado')
+                ->where('referencia_usuario', $referenciaExtraida)
+                ->exists()) {
+                Log::warning('Intento de reuso de comprobante detectado', [
+                    'referencia' => $referenciaExtraida,
+                    'from' => $from,
+                    'monto' => $montoExtraido,
+                ]);
+                $this->evolutionService->sendMessage($from, "⚠️ Ese comprobante ya fue utilizado para otra impresión. Si crees que es un error, contacta al administrador.");
+                return;
+            }
 
             // Buscar orden pendiente del cliente por el monto exacto
             // Primero, buscamos al cliente
@@ -226,11 +269,18 @@ class WhatsAppController extends Controller
                     ->first();
             }
 
-            // Si no encuentra por cliente, buscar cualquier transacción pendiente con ese monto exacto (peligroso pero útil si es web_guest)
-            if (!$pendingPayment) {
-                $pendingPayment = TransaccionPago::where('estado', 'pendiente')
+            // Si no encuentra por cliente (ej. web_guest), solo liberamos automáticamente
+            // cuando hay una ÚNICA orden pendiente en todo el sistema con ese monto exacto
+            // y el comprobante trae una referencia legible: reduce el riesgo de que un
+            // comprobante ajeno libere la orden de otra persona solo por coincidir el monto.
+            if (!$pendingPayment && $referenciaExtraida !== '') {
+                $candidatas = TransaccionPago::where('estado', 'pendiente')
                     ->where('monto', $montoExtraido)
-                    ->first();
+                    ->get();
+
+                if ($candidatas->count() === 1) {
+                    $pendingPayment = $candidatas->first();
+                }
             }
 
             if ($pendingPayment) {

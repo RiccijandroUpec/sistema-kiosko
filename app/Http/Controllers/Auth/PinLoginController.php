@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\EvolutionService;
+use App\Support\PinLoginThrottle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -20,19 +22,30 @@ class PinLoginController extends Controller
     /**
      * Handle the PIN login request.
      */
-    public function login(Request $request)
+    public function login(Request $request, EvolutionService $evolutionService)
     {
         $request->validate([
             'pin' => 'required|digits:4',
         ]);
 
+        $throttleKey = 'admin:' . $request->ip();
+
+        if (PinLoginThrottle::tooManyAttempts($throttleKey)) {
+            return back()->withErrors([
+                'pin' => 'Demasiados intentos fallidos. Intenta de nuevo en unos minutos.',
+            ]);
+        }
+
         $user = User::where('pin', $request->pin)->where('role', 'admin')->first();
 
         if ($user) {
+            PinLoginThrottle::clear($throttleKey);
             Auth::login($user, true);
             $request->session()->regenerate();
             return redirect()->intended('/admin');
         }
+
+        PinLoginThrottle::hit($throttleKey, 'admin', $evolutionService);
 
         return back()->withErrors([
             'pin' => 'El PIN ingresado es incorrecto.',

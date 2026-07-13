@@ -17,14 +17,16 @@ class KioskApiController extends Controller
 {
     protected function resolveKiosk(Request $request): ?Kiosko
     {
-        // El token API en la nueva arquitectura es el propio UUID del kiosko
+        // El token es un secreto propio (api_token), separado del UUID publico del
+        // kiosko: el UUID aparece en HTML publico (formulario de configuracion) y en
+        // rutas publicas de poster/QR, asi que nunca debe servir como credencial.
         $token = (string) $request->header('X-Kiosk-Token', $request->input('api_token', ''));
 
         if (empty($token)) {
             return null;
         }
 
-        return Kiosko::find($token);
+        return Kiosko::where('api_token', $token)->first();
     }
 
     protected function unauthorized(): JsonResponse

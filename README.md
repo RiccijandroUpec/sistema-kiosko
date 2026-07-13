@@ -64,6 +64,7 @@ No se versionan los valores reales. Completa tu propio `.env` con:
 - `SUPABASE_STORAGE_BUCKET` — normalmente `pdfs`. El bucket debe existir y estar marcado como público (lectura pública; la escritura siempre va por `service_role`, sin importar el toggle de público).
 - `DEEPSEEK_API_KEY`, `GEMINI_API_KEY`
 - `EVOLUTION_API_BASE_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE`
+- `EVOLUTION_WEBHOOK_SECRET` — genera un valor random y configura el webhook en Evolution API como `https://tu-app.com/webhook-bot?secret=ESE_VALOR`. Sin esto, el webhook acepta peticiones de cualquiera sin verificar que vengan realmente de Evolution.
 - `IMAP_HOST`, `IMAP_USERNAME`, `IMAP_PASSWORD` (contraseña de aplicación, no la real)
 - `ADMIN_PHONE`
 
@@ -91,6 +92,8 @@ npm install
 cp .env.example .env   # completar CENTRAL_URL y KIOSK_API_TOKEN
 npm start
 ```
+
+`npm start` corre el agente a través de un watchdog (`src/watchdog.js`): si el proceso se cae por cualquier motivo (excepción no atrapada, pérdida de red al arrancar) se reinicia solo con backoff, sin que alguien tenga que ir a la PC del kiosko a reiniciarlo a mano. Para correr el proceso sin el watchdog (debugging), usa `npm run start:direct`.
 
 ## Despliegue en Railway
 
@@ -121,10 +124,12 @@ No se necesita una base de datos de Railway: ambos servicios usan el mismo proye
 
 ## Seguridad
 
-- La API de kioskos usa tokens Bearer por kiosko.
+- La API de kioskos usa un `api_token` propio por kiosko (columna separada, oculta en el modelo), **no** su UUID: el UUID aparece en URLs públicas (poster, QR, formulario de configuración), así que nunca sirve como credencial. El token real se ve/regenera desde el panel Filament (acción "Regenerar Token" en la tabla de Kioskos) y va en `KIOSK_API_TOKEN` del `.env` del kiosk-agent.
+- El webhook de WhatsApp (`/webhook-bot`) exige `EVOLUTION_WEBHOOK_SECRET` como query param (`?secret=...`) o header `X-Webhook-Secret`; sin él, cualquiera podría simular mensajes entrantes.
+- Verificación de pago por imagen (WhatsApp + Gemini Vision): un mismo comprobante no puede reutilizarse para liberar dos órdenes (se rechaza si esa referencia ya fue usada), y si no hay match por cliente solo se libera automáticamente cuando existe una única orden pendiente con ese monto exacto en todo el sistema.
 - `.env`, `.env.backup` y `.env.production` están en `.gitignore` — nunca se versionan credenciales.
 - Evolution API usa locks para evitar mensajes de WhatsApp duplicados o en bucle.
-- Rate limiting (`throttle`) en login por PIN del panel de kiosko, liberar orden por PIN, y la API de kioskos/webhook.
+- Rate limiting (`throttle`) en login por PIN del panel de kiosko (scoped al kiosko elegido), login PIN de admin, liberar orden por PIN, subida/creación de trabajos, y la API de kioskos/webhook.
 - Subida a Supabase Storage solo con `service_role` key desde el servidor — nunca con la `anon key`.
 
 ## Tests
@@ -144,11 +149,16 @@ Los 14 tests que siguen fallando (`Tests\Feature\Auth\*`, `ProfileTest`) son el 
 
 **Funciona y está probado en vivo:** flujo completo de pago por WhatsApp/correo, panel admin, impresión real vía kiosk-agent (con copias/rango/color/orientación correctos), storage persistente en Supabase, alertas por WhatsApp, despliegue en Railway (web + evolution-api).
 
+**Resuelto recientemente:**
+- El contenedor web ahora corre **nginx + php-fpm** en vez de `php artisan serve` (que es de un solo hilo y se saturaba con tráfico real de WhatsApp, confirmado en pruebas en vivo). Sirven requests en paralelo de verdad; sin cambios en el código de la app.
+- El kiosk-agent ya no se queda muerto si falla la autenticación o se cae: reintenta con backoff y corre bajo un watchdog (`npm start`) que lo reinicia solo ante una excepción no atrapada.
+- `WhatsAppController` (webhook, matching de pagos por imagen) tenía cero tests; ahora tiene cobertura de los casos de fraude/seguridad corregidos (`tests/Feature/WhatsAppWebhookTest.php`).
+
 **Pendiente / conocido:**
-- `php artisan serve` es de un solo hilo — en una sesión de prueba real, el tráfico de WhatsApp llegando seguido fue suficiente para saturarlo y bloquear otras peticiones. Railway corre lo mismo en producción. Para más volumen, cambiar a nginx+php-fpm o varios workers.
-- El kiosk-agent no se recupera solo si falla la autenticación o se cae — hay que reiniciarlo a mano.
 - Las alertas dependen 100% de WhatsApp (Evolution API): si esa pieza se cae, no hay ningún aviso de respaldo (correo, etc.).
 - Quedan controladores de autenticación huérfanos sin usar (`RegisteredUserController`, `PasswordResetLinkController`, etc.) — no rompen nada, pero son código muerto sin limpiar.
 - Un solo número/instancia de WhatsApp (Evolution API) — no escala a muchos kioskos simultáneos sin arquitectura adicional.
 - Sin backups automáticos ni error tracking (Sentry u otro) configurado.
 - Hay PDFs de clientes reales en el historial de git (`kiosk-agent/downloads`/`output`, de antes del `.gitignore`) — pendiente de limpiar si importa la privacidad de esos archivos.
+- La verificación de pago sigue basada en OCR (WhatsApp) y parseo de correo (IMAP) en vez de una integración real con la pasarela de pago — es la fuente de la mayoría de los casos borde de fraude/latencia. Requiere gestión comercial con el banco/Deuna, no es solo código.
+- `PITCH_DECK.md` describe una arquitectura multi-tenant ("1000+ kiosks", Grafana, etc.) que todavía no existe: hoy es de un solo dueño/admin, con un único número de WhatsApp compartido.

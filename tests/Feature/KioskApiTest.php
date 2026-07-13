@@ -36,7 +36,7 @@ class KioskApiTest extends TestCase
         $kiosko = Kiosko::factory()->create(['estado' => 'offline', 'ultima_conexion' => now()->subHour()]);
 
         $response = $this->postJson('/api/kiosk/heartbeat', [], [
-            'X-Kiosk-Token' => $kiosko->id,
+            'X-Kiosk-Token' => $kiosko->api_token,
         ]);
 
         $response->assertOk();
@@ -54,7 +54,7 @@ class KioskApiTest extends TestCase
         OrdenImpresion::factory()->create(['kiosko_id' => $kioskoB->id, 'estado' => 'pagado']); // de otro kiosko, no debe salir
 
         $response = $this->getJson('/api/kiosk/jobs/pending', [
-            'X-Kiosk-Token' => $kioskoA->id,
+            'X-Kiosk-Token' => $kioskoA->api_token,
         ]);
 
         $response->assertOk();
@@ -75,7 +75,7 @@ class KioskApiTest extends TestCase
         ]);
 
         $response = $this->get("/api/kiosk/jobs/{$orden->id}/pdf", [
-            'X-Kiosk-Token' => $kiosko->id,
+            'X-Kiosk-Token' => $kiosko->api_token,
         ]);
 
         $response->assertOk();
@@ -90,7 +90,7 @@ class KioskApiTest extends TestCase
         ]);
 
         $response = $this->get("/api/kiosk/jobs/{$orden->id}/pdf", [
-            'X-Kiosk-Token' => $kiosko->id,
+            'X-Kiosk-Token' => $kiosko->api_token,
         ]);
 
         $response->assertRedirect('https://fhobcjujlrcslrucecep.supabase.co/storage/v1/object/public/pdfs/algo.pdf');
@@ -103,7 +103,7 @@ class KioskApiTest extends TestCase
         $orden = OrdenImpresion::factory()->create(['kiosko_id' => $kioskoB->id]);
 
         $response = $this->get("/api/kiosk/jobs/{$orden->id}/pdf", [
-            'X-Kiosk-Token' => $kioskoA->id,
+            'X-Kiosk-Token' => $kioskoA->api_token,
         ]);
 
         $response->assertStatus(401);
@@ -116,7 +116,7 @@ class KioskApiTest extends TestCase
         TransaccionPago::factory()->create(['orden_id' => $orden->id, 'estado' => 'pendiente']);
 
         $response = $this->postJson("/api/kiosk/jobs/{$orden->id}/complete", [], [
-            'X-Kiosk-Token' => $kiosko->id,
+            'X-Kiosk-Token' => $kiosko->api_token,
         ]);
 
         $response->assertOk();
@@ -132,7 +132,7 @@ class KioskApiTest extends TestCase
         $response = $this->postJson("/api/kiosk/jobs/{$orden->id}/error", [
             'error' => 'La impresora no tiene papel',
         ], [
-            'X-Kiosk-Token' => $kiosko->id,
+            'X-Kiosk-Token' => $kiosko->api_token,
         ]);
 
         $response->assertOk();

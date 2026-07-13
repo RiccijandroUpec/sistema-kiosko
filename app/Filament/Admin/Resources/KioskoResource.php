@@ -33,6 +33,16 @@ class KioskoResource extends Resource
                         ->label('ID del Kiosko (UUID)')
                         ->disabled()
                         ->visible(fn ($record) => $record !== null),
+                    Forms\Components\TextInput::make('api_token')
+                        ->label('Token del Kiosk Agent')
+                        ->disabled()
+                        ->dehydrated(false)
+                        ->copyable()
+                        ->visible(fn ($record) => $record !== null)
+                        // api_token esta en $hidden del modelo (no debe salir en toArray()/JSON),
+                        // asi que Filament no lo autocompleta solo: lo leemos crudo aqui.
+                        ->afterStateHydrated(fn (Forms\Components\TextInput $component, $record) => $component->state($record?->getRawOriginal('api_token')))
+                        ->helperText('Secreto que va en KIOSK_API_TOKEN del kiosk-agent. Nunca se muestra en paginas publicas (a diferencia del ID). Si se filtra, regeneralo desde la tabla.'),
                     Forms\Components\TextInput::make('slug')
                         ->label('URL fija del kiosko')
                         ->disabled()
@@ -196,6 +206,22 @@ class KioskoResource extends Resource
                     ->color('info')
                     ->url(fn ($record) => route('kiosko.poster', $record))
                     ->openUrlInNewTab(),
+                Tables\Actions\Action::make('regenerate_token')
+                    ->label('Regenerar Token')
+                    ->icon('heroicon-o-key')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalDescription('El kiosk-agent actual dejara de poder autenticarse hasta que actualices su KIOSK_API_TOKEN con el nuevo valor.')
+                    ->action(function (Kiosko $record) {
+                        $token = $record->regenerateApiToken();
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Token regenerado')
+                            ->body($token)
+                            ->success()
+                            ->persistent()
+                            ->send();
+                    }),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
