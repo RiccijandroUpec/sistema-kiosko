@@ -174,7 +174,7 @@ async function mainLoop() {
   setStatus('online', {
     kioskId: auth.data.id,
     kioskName: auth.data.nombre,
-    printerName: auth.data.nombre_cups,
+    printerName: config.printerName,
     centralUrl: config.centralUrl,
     lastHeartbeatAt: new Date().toISOString(),
   });

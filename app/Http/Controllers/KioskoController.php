@@ -186,7 +186,7 @@ class KioskoController extends Controller
             'rango_paginas' => $rangoPaginas,
             'papel' => $request->paper_size,
             'orientacion' => $request->orientation,
-            'color' => $request->color_type === 'color' ? 'true' : 'false',
+            'color' => $request->color_type === 'color' ? 1 : 0,
             'costo_total' => $totalCost,
             'estado' => 'pendiente',
         ]);
