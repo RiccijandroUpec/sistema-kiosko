@@ -55,8 +55,8 @@ Impresora local
 ## Funcionalidades principales
 
 - **Cada kiosko tiene su propia URL fija** (`/k/{slug}`): el cliente entra directo a subir su archivo en la sede correcta, sin elegir nada ni confundirse de lugar. La home (`/`) ya no es un flujo de cliente — es la landing de negocio (pitch para dueños de local).
-- Pagos automatizados por foto de comprobante (WhatsApp + Gemini Vision)
-- Pagos automatizados por correo (revisión IMAP periódica, con búsqueda optimizada por referencia en el servidor)
+- Componentes para verificar pagos por foto (WhatsApp + Gemini Vision) y correo IMAP; requieren configuración y pruebas con el banco real
+- Pago manual mediante PIN del kiosko para efectivo, pruebas y contingencias
 - Bot de WhatsApp (Evolution API): recibe PDFs, cotiza, cobra y da seguimiento
 - Panel admin (Filament): gestión de órdenes, kioskos, reembolsos — login unificado en `/login` con 3 modos (PIN de kiosko, email/password de admin, PIN de admin)
 - **Copias, rango de páginas personalizado, color/B-N y orientación se respetan de verdad** al imprimir (antes eran solo decorativos en pantalla: se cobraba por N copias pero solo se imprimía 1, por ejemplo)
@@ -236,11 +236,11 @@ Corren contra SQLite en memoria (`phpunit.xml`), nunca contra la base de datos r
 - `KioskApiTest` — autenticación, heartbeat, `pendingJobs`, descarga de PDF (local y externa), `completeJob`, `reportError`
 - `CheckSystemHealthCommandTest` — alertas de kiosko desconectado y pago atascado (sin duplicarse)
 
-Los 14 tests que siguen fallando (`Tests\Feature\Auth\*`, `ProfileTest`) son el scaffolding por defecto de Laravel — prueban rutas (`/login` clásico, `/profile`, registro, reset de password) desactivadas desde la migración a FilamentPHP. No es una regresión, nunca se reconectaron.
+La suite crítica validada tiene 18 tests y 39 assertions aprobadas (`PrintJobCreationTest`, `KioskApiTest` y `CheckSystemHealthCommandTest`). La suite completa todavía incluye fallos del scaffolding de autenticación/perfil y algunos escenarios de integración que deben reconectarse o retirarse; no deben interpretarse como validación de producción.
 
 ## Estado actual y pendientes
 
-**Funciona y está probado:** flujo web local, panel administrativo, creación de órdenes, cálculo de precios, autenticación del agente, descarga del PDF e impresión física con Epson L4360. También están implementados los componentes de pagos por WhatsApp/correo, Storage persistente, alertas y despliegue en Railway.
+**Funciona y está probado:** flujo web local, panel administrativo, creación de órdenes, cálculo de precios, autenticación del agente, descarga del PDF e impresión física con Epson L4360. También están implementados los componentes de pagos por WhatsApp/correo, Storage persistente, alertas y despliegue en Railway, pero la verificación automática requiere configurar las credenciales externas del entorno.
 
 **Resuelto recientemente:**
 - El contenedor web ahora corre **nginx + php-fpm** en vez de `php artisan serve` (que es de un solo hilo y se saturaba con tráfico real de WhatsApp, confirmado en pruebas en vivo). Sirven requests en paralelo de verdad; sin cambios en el código de la app.

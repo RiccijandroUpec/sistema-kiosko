@@ -1,5 +1,7 @@
 # 📋 Índice de Documentación Profesional
 
+> **Estado documental (septiembre de 2026):** [README.md](./README.md) es la fuente de verdad del estado actual. El flujo web local y la impresión con el Kiosk Agent en una Epson L4360 están validados; pagos automáticos, producción y métricas de escala todavía requieren configuración o validación adicional.
+
 ## Para Inversores & Partners
 
 Bienvenido al repositorio completo del **Sistema de Kiosko de Impresiones**. Esta documentación está diseñada para proporcionar una visión ejecutiva, técnica y operacional del proyecto.
@@ -8,7 +10,12 @@ Bienvenido al repositorio completo del **Sistema de Kiosko de Impresiones**. Est
 
 ## 🎯 Documentos Clave (En Orden de Lectura)
 
-### 1️⃣ **[PITCH_DECK.md](./PITCH_DECK.md)** - START HERE ⭐
+### 1️⃣ **[README.md](./README.md)** - ESTADO ACTUAL ⭐
+**Para quién:** Todo el equipo
+
+Incluye arquitectura vigente, instalación local, configuración del agente, prueba realizada y pendientes reales.
+
+### 2️⃣ **[PITCH_DECK.md](./PITCH_DECK.md)** - VISIÓN DE NEGOCIO
 **Duración de lectura:** 10 minutos
 **Para quién:** Inversores, ejecutivos, stakeholders
 
@@ -27,7 +34,7 @@ Bienvenido al repositorio completo del **Sistema de Kiosko de Impresiones**. Est
 
 ---
 
-### 2️⃣ **[ARCHITECTURE.md](./ARCHITECTURE.md)** - PROFUNDIDAD TÉCNICA
+### 3️⃣ **[ARCHITECTURE.md](./ARCHITECTURE.md)** - PROFUNDIDAD TÉCNICA
 **Duración de lectura:** 30 minutos
 **Para quién:** CTOs, architects, technical due diligence
 
@@ -52,7 +59,7 @@ Bienvenido al repositorio completo del **Sistema de Kiosko de Impresiones**. Est
 
 ---
 
-### 3️⃣ **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - OPERACIONAL
+### 4️⃣ **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - OPERACIONAL
 **Duración de lectura:** 20 minutos (ejecutar: 2 horas)
 **Para quién:** DevOps, technical teams, implementadores
 
@@ -87,7 +94,7 @@ sistema-kiosko/
 │   ├── Services/
 │   │   └── DeepseekService.php  ← Integración IA
 │   └── Http/
-├── resources/              ← Frontend Vue.js
+├── resources/              ← Vistas Blade, JS y CSS del servidor
 ├── config/                 ← Configuraciones
 │   ├── deepseek.php
 │   ├── evolution.php
@@ -146,19 +153,17 @@ sistema-kiosko/
 
 ### Financiero
 ```
-Costo Operativo Mensual:    $95 - $300 USD
-Costo vs Competencia:       95% MENOS costoso
-Break-even por kiosk:       ~30 órdenes/día @ $0.50
-Ingresos Proyectados Año 1: $1.2M (50 kiosks)
-Ingresos Proyectados Año 3: $18M+ (500+ kiosks)
+Modelo financiero:          Pendiente de validar con operación real
+Precios:                    Configurables por kiosko
+Break-even:                 Depende de sede, volumen y costos reales
+Ingresos proyectados:      Son hipótesis comerciales, no resultados medidos
 ```
 
 ### Técnico
 ```
-Tiempo Despliegue:          < 15 minutos
-Latencia API:               < 50ms (p95)
-Disponibilidad:             99.9%
-Escalabilidad:              Infinita (serverless)
+Tiempo Despliegue:          Validado localmente; producción pendiente
+Latencia/Disponibilidad:    Sin benchmark formal todavía
+Escalabilidad:              Arquitectura preparada; volumen pendiente
 Lenguajes:                  PHP, JavaScript, SQL
 Cloud Provider:             Railway + Supabase
 ```
@@ -178,7 +183,7 @@ Churn Expected:             < 5% mensual
 
 ### Para el CEO/Investor
 ```
-1. PITCH_DECK.md (15 min) ← TODO
+1. README.md (15 min) ← estado actual
 2. Diagrama de arquitectura (5 min) ← ARCHITECTURE.md sección 0
 3. Métricas financieras (5 min) ← PITCH_DECK análisis sección
 4. Demo en vivo (15 min) ← DEPLOYMENT_GUIDE ejecutar
@@ -351,7 +356,7 @@ DEPLOYMENT_GUIDE.md    v1.0 | Mayo 2026
 | **NLP** | Natural Language Processing (DeepSeek) | ARCHITECTURE §4.1 |
 | **CUPS** | Common Unix Printing System | ARCHITECTURE §6.3 |
 | **WebSocket** | Protocolo de comunicación en tiempo real | ARCHITECTURE §3.2 |
-| **Realtime** | Supabase pub/sub (< 50ms) | ARCHITECTURE §3.2 |
+| **Realtime** | Canal opcional; polling de respaldo activo | ARCHITECTURE §3.2 |
 | **Webhook** | HTTP callback hacia un endpoint | ARCHITECTURE §5 |
 | **Service Key** | Credencial de servidor (Supabase) | DEPLOYMENT §1.2 |
 | **RLP** | Row Level Policy (seguridad BD) | ARCHITECTURE §9.2 |

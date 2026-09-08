@@ -1,13 +1,15 @@
 # Arquitectura del Sistema de Kiosco de Impresiones
 
+> **Nota de vigencia:** este documento mezcla arquitectura actual y objetivo. La implementación validada hoy es Laravel 12 + Filament 3.3 + Blade/JavaScript, un Kiosk Agent Node.js por impresora y una API central. Consulta [README.md](./README.md) para el estado comprobado y los pendientes.
+
 ## Resumen Ejecutivo
 
-Sistema distribuido de impresión bajo demanda con inteligencia artificial, diseñado para operar kioskos de autoservicio en múltiples ubicaciones. La arquitectura implementa una solución **serverless-first** con comunicación en tiempo real (WebSockets) y procesamiento inteligente de peticiones vía IA.
+Sistema distribuido de impresión bajo demanda con inteligencia artificial, diseñado para operar kioskos de autoservicio en múltiples ubicaciones. La arquitectura separa el servidor central de los agentes locales que controlan las impresoras.
 
 **Ventajas Competitivas:**
 - Costo operativo ultra-bajo (IA y hosting escalables)
-- Tiempo de despliegue < 15 minutos por sucursal
-- Escalabilidad horizontal sin modificación de código
+- Tiempo de despliegue objetivo por sucursal
+- Escalabilidad horizontal prevista, pendiente de pruebas de volumen
 - Experiencia de usuario conversacional (WhatsApp)
 
 ---
@@ -28,7 +30,7 @@ Sistema distribuido de impresión bajo demanda con inteligencia artificial, dise
 │              RAILWAY (PaaS - Servidor Central)                 │
 │                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │  LARAVEL 11 (PHP 8.3+)                                  │  │
+│  │  LARAVEL 12 (PHP 8.2+)                                  │  │
 │  │  ├─ HTTP Router & Controllers                           │  │
 │  │  ├─ API REST Endpoints                                  │  │
 │  │  ├─ Validación & Lógica de Negocio                      │  │
@@ -122,7 +124,7 @@ Sistema distribuido de impresión bajo demanda con inteligencia artificial, dise
 ## 1. Capa de Presentación & Acceso
 
 ### 1.1 Frontend Web
-- **Tecnología:** Vue.js 3 + Vite
+- **Tecnología:** Vistas Blade + Alpine.js/JavaScript + Vite para assets
 - **Ubicación:** `/resources/js/` y `/resources/views/`
 - **Funcionalidades:**
   - Dashboard de usuario para subida de PDFs
@@ -143,7 +145,7 @@ Sistema distribuido de impresión bajo demanda con inteligencia artificial, dise
 
 ## 2. Servidor Central (Railway PaaS)
 
-### 2.1 Laravel 11 (PHP 8.3+)
+### 2.1 Laravel 12 (PHP 8.2+)
 
 **Responsabilidades:**
 - Orquestación de toda la lógica de negocio
@@ -325,11 +327,7 @@ const channel = supabase
   .subscribe();
 ```
 
-**Ventajas:**
-- Notificación instantánea (< 50ms)
-- Sin polling a base de datos
-- Uso eficiente de ancho de banda
-- Escalable a miles de clientes
+**Estado:** Realtime está preparado como canal opcional, pero el agente actual conserva polling de respaldo cada 5 segundos. No se ha realizado un benchmark formal de latencia o volumen.
 
 ### 3.3 Supabase Storage (Buckets)
 
@@ -762,15 +760,15 @@ class StorePrintJobRequest extends FormRequest {
 └─────────────────────────────────┘
 ```
 
-### 10.2 Benchmarks Esperados
+### 10.2 Benchmarks Objetivo (no medidos)
 
 | Métrica | Valor |
 |---------|-------|
-| Latencia API (p95) | < 100ms |
-| Throughput | 1,000 req/seg |
-| Realtime Notification | < 50ms |
-| Tasa de Disponibilidad | 99.9% |
-| MTTR (Mean Time to Recovery) | < 5 min |
+| Latencia API (p95) | Objetivo < 100ms |
+| Throughput | Pendiente de medir |
+| Realtime Notification | Pendiente de medir |
+| Tasa de Disponibilidad | Objetivo 99.9% |
+| MTTR (Mean Time to Recovery) | Pendiente de medir |
 
 ### 10.3 Caching Strategy
 

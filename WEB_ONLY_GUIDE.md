@@ -1,5 +1,7 @@
 # Guía de Uso: Kiosko de Impresiones (Web Only)
 
+> **Estado actual:** el flujo recomendado comienza en `/k/{slug}` (por ejemplo `/k/central`) para asignar la orden a una sede concreta. Esta guía describe el modo web sin WhatsApp; el pago automático por banco requiere configuración IMAP, mientras que el PIN del kiosko permite confirmar manualmente efectivo o pruebas.
+
 ## Modo Web - Sin WhatsApp
 
 Este sistema funciona completamente a través de la página web. No requiere WhatsApp activado para operar.
@@ -8,9 +10,9 @@ Este sistema funciona completamente a través de la página web. No requiere Wha
 
 #### **1. Usuario - Subir PDF**
 ```
-http://localhost:8000
+http://localhost:8000/k/central
 ↓
-Click "Subir PDF"
+Subir PDF
 ↓
 Selecciona archivo PDF (máx 10MB)
 ↓
@@ -147,13 +149,14 @@ Desde `/admin`:
 
 ## Base de Datos
 
-### Tablas principales
+### Entidades principales
 
 - `users` - Administradores
 - `pdf_files` - Archivos subidos
-- `print_jobs` - Trabajos de impresión
-- `payments` - Registros de pago
-- `transactions` - Historial de transacciones
+- `ordenes_impresion` - Trabajos de impresión
+- `transacciones_pago` - Registros de pago
+- `kioskos` - Sedes e impresoras
+- `pdf_files` - PDFs subidos
 
 ---
 

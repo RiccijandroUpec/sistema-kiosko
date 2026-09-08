@@ -1,5 +1,7 @@
 # WhatsApp Business API Integration Guide
 
+> **Estado:** esta guía documenta la alternativa Meta WhatsApp Cloud API. La operación actual del proyecto está orientada a Evolution API; la integración Meta no debe considerarse activa hasta configurar credenciales, webhook y pruebas de extremo a extremo. Consulta también `WHATSAPP_BUSINESS_SETUP.md` y el README antes de desplegar.
+
 ## Overview
 This guide explains how to set up the Meta WhatsApp Business API integration for the kiosko system.
 

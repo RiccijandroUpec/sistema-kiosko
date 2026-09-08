@@ -1,5 +1,7 @@
 # 🚀 Guía Rápida de Instalación - Sistema de Kiosko de Impresiones
 
+> **Ruta comprobada actual:** usa XAMPP/MySQL, Laravel en `http://127.0.0.1:8000`, el kiosko en `/k/central` y un Kiosk Agent por impresora. Las credenciales reales se configuran en `.env` y nunca deben publicarse.
+
 ## Instalación Rápida (5 minutos)
 
 ### 1. En Ubuntu Server (Recomendado para Producción)
@@ -18,9 +20,7 @@ wget -O - https://your-repo/raw/main/install-ubuntu.sh | bash
 
 **Después de completar:**
 - URL: `http://tu-dominio.com`
-- Admin Email: `admin@kiosko.com`
-- Admin Password: `password`
-- Cambiar contraseña en primer acceso
+- Configura el usuario administrador mediante el seeder y cambia cualquier credencial inicial antes de publicar.
 
 ---
 
@@ -88,7 +88,7 @@ php artisan serve
 
 | Usuario | Email | Contraseña |
 |---------|-------|-----------|
-| Admin | admin@kiosko.com | password |
+| Admin | Configurado por el entorno | Configurada por el entorno |
 
 ⚠️ **CAMBIAR CONTRASEÑA INMEDIATAMENTE**
 
@@ -125,10 +125,11 @@ Inicio:               http://tu-dominio.com/
 Login:                http://tu-dominio.com/login
 Registro:             http://tu-dominio.com/register
 Dashboard:            http://tu-dominio.com/dashboard
-Subir PDF:            http://tu-dominio.com/pdf/upload
+Kiosko cliente:       http://tu-dominio.com/k/{slug}
 Historial:            http://tu-dominio.com/print-history
 Archivos:             http://tu-dominio.com/pdf-history
-Panel Admin:          http://tu-dominio.com/admin/dashboard
+Panel Admin:          http://tu-dominio.com/admin
+Agente local:         http://127.0.0.1:8787
 API Base:             http://tu-dominio.com/api/
 ```
 

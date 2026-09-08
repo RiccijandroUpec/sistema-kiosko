@@ -1,6 +1,8 @@
 # RickTech - Sistema Híbrido de Kioskos Inteligentes
 **Manual Técnico, Arquitectura y Guía de Usuario**
 
+> **Estado real:** Laravel 12 y Filament 3.3 están implementados. El flujo web local y la impresión con Kiosk Agent + Epson L4360 fueron probados. La verificación automática de pagos es un componente configurable, pero todavía requiere conectar y validar el correo de Banco Pichincha/Deuna en cada entorno.
+
 ---
 
 ## 1. Visión General del Proyecto
@@ -9,11 +11,11 @@ RickTech es un sistema integral diseñado para automatizar kioskos de impresión
 ## 2. Tecnologías Utilizadas
 
 ### Stack Central (Nube / Servidor)
-- **Framework Principal:** Laravel 11 (PHP 8.2+).
+- **Framework Principal:** Laravel 12 (PHP 8.2+).
 - **Panel Administrativo:** FilamentPHP v3 (Interfaz de administración robusta y estética).
 - **Base de Datos Central:** MySQL / PostgreSQL (Gestionada por Eloquent ORM).
 - **Estilos / Frontend:** Tailwind CSS, Alpine.js, Livewire, Vanilla CSS (Para Landing Page Glassmorphism).
-- **Tiempo Real:** Supabase Realtime (WebSockets) para emitir eventos de pago instantáneos.
+- **Tiempo Real:** Supabase Realtime es opcional; el agente mantiene polling de respaldo cada 5 segundos.
 
 ### Inteligencia Artificial & Comunicaciones
 - **Google Gemini 1.5 Flash Vision:** Lee y extrae datos de comprobantes de pago bancarios enviados por los clientes (fotos y screenshots).

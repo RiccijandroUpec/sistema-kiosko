@@ -24,8 +24,24 @@ http://127.0.0.1:8787
 
 Desde ahí puedes:
 - ver el estado del agente,
+- ver la impresora configurada y el trabajo actual,
 - revisar logs recientes,
 - probar la conexión contra el VPS.
+
+## Configuración actual
+
+Cada computadora/impresora instala un agente independiente. El agente se autentica con un token propio del kiosko y consulta trabajos pendientes mediante polling de respaldo.
+
+```env
+CENTRAL_URL=http://127.0.0.1:8000
+KIOSK_API_TOKEN=token-secreto-del-kiosko
+KIOSK_NAME=Kiosko Central - Epson L4360
+PRINTER_NAME=EPSONF878E1 (L4360 Series)
+POLL_INTERVAL_MS=5000
+LOCAL_PANEL_PORT=8787
+```
+
+El flujo Windows con una Epson L4360 fue probado de extremo a extremo. La autenticación usa `X-Kiosk-Token`; el UUID público del kiosko no debe usarse como secreto.
 
 ## Empaquetar como ejecutable e instalar en un kiosko físico
 

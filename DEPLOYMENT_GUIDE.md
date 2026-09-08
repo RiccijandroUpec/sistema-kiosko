@@ -1,5 +1,7 @@
 # Guía de Despliegue - Sistema Listo para Producción
 
+> **Importante:** esta es una guía de objetivo de producción, no una confirmación de que todos los servicios externos estén configurados. Para una instalación comprobada en Windows/XAMPP, empieza por [README.md](./README.md). El flujo de pagos automáticos por correo/WhatsApp requiere credenciales y pruebas propias.
+
 ## Pre-requisitos (Verificar antes de comenzar)
 
 ### Cuentas & Claves Requeridas
@@ -17,7 +19,7 @@
 ```bash
 ☐ Docker & Docker Compose
 ☐ Node.js 18+ (para desarrollo)
-☐ PHP 8.3+ (para desarrollo local)
+☐ PHP 8.2+ (para desarrollo local)
 ☐ Composer (gestor de dependencias PHP)
 ☐ Git
 ☐ Terminal/PowerShell (Windows) o Bash (Linux/Mac)
@@ -25,7 +27,7 @@
 
 ### Permisos de Red
 ```bash
-☐ Puertos abiertos: 8000 (Laravel), 3000 (Evolution)
+☐ Puertos abiertos: 8000 (Laravel local), 8787 (Kiosk Agent), 3000/8080 según Evolution API
 ☐ CORS habilitado en Supabase para tu dominio
 ☐ Webhook URL accesible desde internet
 ```
@@ -298,11 +300,11 @@ php artisan migrate
 # Terminal 1: Laravel Server
 php artisan serve
 
-# Terminal 2: Vite Dev Server
-npm run dev
-
-# Terminal 3 (opcional): Queue Worker
+# Terminal 2: Queue Worker
 php artisan queue:work
+
+# Terminal 3 (opcional): Scheduler local
+php artisan schedule:work
 ```
 
 **Verificar:**
@@ -324,30 +326,27 @@ npm install
 # Configurar variables (crear .env)
 cp .env.example .env
 
-# Editar con tu Kiosk ID y CUPS printer name
+# Editar con la URL central, token secreto y nombre exacto de la impresora
 nano .env
 ```
 
 **`.env` del agente:**
 ```env
-SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_SERVICE_KEY=eyJxxx
-KIOSK_ID=your-kiosk-uuid
-PRINTER_NAME=HP-LaserJet-4050
-LOG_LEVEL=info
+CENTRAL_URL=https://tu-dominio.com
+KIOSK_API_TOKEN=token-secreto-del-kiosko
+KIOSK_NAME=Kiosko Central
+PRINTER_NAME=Nombre exacto de la impresora
+POLL_INTERVAL_MS=5000
+LOCAL_PANEL_PORT=8787
 ```
 
 **Ejecutar agente:**
 ```bash
-# Modo desarrollo
-npm run dev
-
-# Modo producción
+# Watchdog y polling de producción/local
 npm start
 
-# O en Docker
-docker build -t kiosk-agent .
-docker-compose up -d
+# Para depuración sin watchdog
+npm run start:direct
 ```
 
 **Verificar:**
@@ -464,10 +463,11 @@ git pull origin main
 
 # 2. Crear archivo .env específico de la sucursal
 cat > .env << EOF
-SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_SERVICE_KEY=eyJ...
-KIOSK_ID=$(uuid -v4)  # Generar UUID único
-PRINTER_NAME=$(lpstat -p | grep -oP 'printer \K[^:]+' | head -1)
+CENTRAL_URL=https://tu-dominio.com
+KIOSK_API_TOKEN=token-secreto-del-kiosko
+KIOSK_NAME=Nombre de la sede
+PRINTER_NAME=Nombre exacto de la impresora
+POLL_INTERVAL_MS=5000
 EOF
 
 # 3. Registrar kiosk en BD (IMPORTANTE: hacer una sola vez)

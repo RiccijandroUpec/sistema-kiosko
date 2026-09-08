@@ -1,5 +1,7 @@
 # Executive Summary - Sistema de Kiosko de Impresiones
 
+> **Alcance de las cifras:** este documento contiene hipótesis, objetivos y proyecciones comerciales. No presenta como medidos los valores de latencia, disponibilidad, ingresos o volumen. La validación técnica actual está limitada al flujo local con una Epson L4360 y las pruebas automatizadas descritas en [README.md](./README.md).
+
 ## El Pitch en 60 Segundos
 
 **¿Qué es?**
@@ -13,7 +15,7 @@ Plataforma de impresión bajo demanda con IA conversacional vía WhatsApp. Los u
 **¿Cuál es tu diferencial?**
 - Costo operativo **95% más bajo** que competidores (IA + serverless)
 - Despliegue en **< 15 minutos** por sucursal
-- Escalable de 1 a 1000+ kiosks sin cambiar código
+- Diseñado para crecer de un kiosko a múltiples sedes; la operación multi-tenant a gran escala aún es roadmap
 
 ---
 
@@ -23,18 +25,18 @@ Plataforma de impresión bajo demanda con IA conversacional vía WhatsApp. Los u
 |-----|--------|--------|
 | Costo Operativo Mensual | < $300 | ✅ **$95-300** |
 | Tiempo Despliegue por Kiosk | < 20 min | ✅ **< 15 min** |
-| Disponibilidad | 99.9% | ✅ **Infrastructure-ready** |
-| Latencia Promedio | < 100ms | ✅ **< 50ms** |
-| Escalabilidad | Lineal | ✅ **Probado hasta 10k eventos/sec** |
+| Disponibilidad | Objetivo 99.9% | Pendiente de medición en producción |
+| Latencia Promedio | Objetivo < 100ms | Sin benchmark formal |
+| Escalabilidad | Objetivo lineal | No validada a 10k eventos/sec |
 
 ---
 
 ## Stack Tecnológico (Enterprise-Grade)
 
 ```
-Frontend:        Vue.js 3 + Vite
-Backend:         Laravel 11 (PHP 8.3+)
-Admin Panel:     FilamentPHP (Dashboard profesional)
+Frontend:        Blade + Alpine.js/JavaScript + Vite
+Backend:         Laravel 12 (PHP 8.2+)
+Admin Panel:     FilamentPHP 3.3
 IA:              DeepSeek API (90% cheaper than GPT-4)
 Database:        PostgreSQL (Supabase managed)
 Realtime:        WebSockets (Supabase Realtime)
@@ -42,7 +44,7 @@ Storage:         S3-compatible (Supabase Storage)
 WhatsApp:        Evolution API (open-source)
 Kiosk Agent:     Node.js + CUPS
 Infrastructure:  Docker + Railway PaaS
-Monitoring:      Winston Logs + Grafana Dashboards
+Monitoring:      Logs Laravel/Agent; Grafana y Sentry son roadmap
 ```
 
 ---
@@ -118,10 +120,10 @@ Año 3: 500+ kioskos × $3,000/mes = $1,5M/mes × 12 = $18M+
 - **Ventaja:** Protección contra cambios de políticas externas
 
 ### Supabase Realtime
-- Notificación en < 50ms (no polling)
-- Escalable a millones de conexiones
-- Costo marginal cercano a cero
-- **Ventaja:** UX superior vs competidores
+- Canal opcional para notificaciones rápidas
+- El agente mantiene polling de respaldo cada 5 segundos
+- Capacidad de escala y latencia aún deben medirse en producción
+- **Ventaja objetivo:** UX más rápida cuando el canal está disponible
 
 ---
 

@@ -1,5 +1,7 @@
 # Central
 
+> **Estado actual:** esta carpeta no es un segundo sistema ni una instalación ejecutable. El código Laravel central permanece en la raíz del repositorio; `central/` es un destino lógico para una futura separación.
+
 Esta carpeta representa el servidor central del sistema.
 
 Aquí debe vivir:
