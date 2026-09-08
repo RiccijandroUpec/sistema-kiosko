@@ -37,7 +37,6 @@ class KioskoResource extends Resource
                         ->label('Token del Kiosk Agent')
                         ->disabled()
                         ->dehydrated(false)
-                        ->copyable()
                         ->visible(fn ($record) => $record !== null)
                         // api_token esta en $hidden del modelo (no debe salir en toArray()/JSON),
                         // asi que Filament no lo autocompleta solo: lo leemos crudo aqui.
