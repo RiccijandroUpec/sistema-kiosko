@@ -85,6 +85,15 @@
             -webkit-text-fill-color: transparent;
         }
 
+        .brand-location {
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin-top: 3px;
+        }
+
         .status-badge {
             display: flex;
             align-items: center;
@@ -204,6 +213,13 @@
 
         .action-card:hover::before {
             opacity: 1;
+        }
+
+        .action-card:focus-visible,
+        .back-btn:focus-visible,
+        button:focus-visible {
+            outline: 3px solid rgba(167, 139, 250, .85);
+            outline-offset: 4px;
         }
 
         .icon-wrapper {
@@ -613,7 +629,10 @@
         <header>
             <div class="brand">
                 <div class="brand-logo">🖨️</div>
-                <div class="brand-name">RickTech Impresiones</div>
+                <div>
+                    <div class="brand-name">RickTech Impresiones</div>
+                    <div class="brand-location" id="brand-location">Kiosko local</div>
+                </div>
             </div>
             <div class="status-badge">
                 <div class="status-dot"></div>
@@ -628,12 +647,12 @@
                 <p>Elige tu método de preferencia y retira tus documentos en segundos.</p>
             </div>
             <div class="actions-grid">
-                <div class="action-card" onclick="switchView('view-wa')">
+                <div class="action-card" role="button" tabindex="0" onclick="switchView('view-wa')" onkeydown="if(event.key === 'Enter' || event.key === ' ') switchView('view-wa')">
                     <div class="icon-wrapper wa-icon">💬</div>
                     <h2>Imprimir por WhatsApp</h2>
                     <p>Escanea el código QR, envía tu documento y listo. ¡Fácil y rápido!</p>
                 </div>
-                <div class="action-card" onclick="switchView('view-code')">
+                <div class="action-card" role="button" tabindex="0" onclick="switchView('view-code')" onkeydown="if(event.key === 'Enter' || event.key === ' ') switchView('view-code')">
                     <div class="icon-wrapper code-icon">🔑</div>
                     <h2>Tengo un Código</h2>
                     <p>Si ya enviaste tu PDF por WhatsApp, introduce el código de referencia para pagar e imprimir.</p>
@@ -787,7 +806,7 @@
                 const state = await response.json();
                 if (state && state.kioskId) {
                     currentKioskConfig = state;
-                    document.querySelector('.brand-name').innerText = state.kioskName || 'RickTech Kiosko';
+                    document.getElementById('brand-location').innerText = state.kioskName || 'Kiosko local';
                 }
             } catch (e) {
                 console.error("Failed to load kiosk configuration", e);
