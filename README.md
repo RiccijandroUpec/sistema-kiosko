@@ -260,7 +260,6 @@ Los 14 tests que siguen fallando (`Tests\Feature\Auth\*`, `ProfileTest`) son el 
 - Un solo número/instancia de WhatsApp (Evolution API) — para muchos kioskos conviene separar canales, webhooks y colas por volumen.
 - Sin backups automáticos ni error tracking (Sentry u otro) configurado.
 - Hay PDFs de clientes reales en el historial de git (`kiosk-agent/downloads`/`output`, de antes del `.gitignore`) — pendiente de limpiar si importa la privacidad de esos archivos.
-<<<<<<< HEAD
 - La verificación de pago sigue basada en OCR (WhatsApp) y parseo de correo (IMAP) en vez de una integración real con la pasarela de pago — es la fuente de la mayoría de los casos borde de fraude/latencia. Requiere gestión comercial con el banco/Deuna, no es solo código.
 - `PITCH_DECK.md` describe una arquitectura multi-tenant ("1000+ kiosks", Grafana, etc.) que todavía no existe: hoy es de un solo dueño/admin, con un único número de WhatsApp compartido.
 
