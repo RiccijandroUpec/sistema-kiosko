@@ -20,6 +20,7 @@ class Kiosko extends Model
         'precio_blanco_negro',
         'precio_color',
         'nombre_cups',
+        'admite_duplex',
         'color_tema',
         'logo_url',
         'pin',
@@ -34,6 +35,7 @@ class Kiosko extends Model
     protected $casts = [
         'precio_blanco_negro' => 'decimal:2',
         'precio_color' => 'decimal:2',
+        'admite_duplex' => 'boolean',
         'ultima_conexion' => 'datetime',
     ];
 

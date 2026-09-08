@@ -19,6 +19,10 @@ Route::middleware('throttle:120,1')->group(function () {
     Route::get('/whatsapp/webhook', [\App\Http\Controllers\WhatsAppController::class, 'webhook']);
 });
 
+// DeUna Webhook
+Route::post('/webhooks/deuna', [\App\Http\Controllers\Api\DeunaWebhookController::class, 'handle']);
+Route::post('/deuna/webhook', [\App\Http\Controllers\Api\DeunaWebhookController::class, 'handle']);
+
 // Kiosk API
 Route::prefix('kiosk')->middleware('throttle:60,1')->group(function () {
     Route::post('/authenticate', [KioskApiController::class, 'authenticate']);
@@ -28,6 +32,7 @@ Route::prefix('kiosk')->middleware('throttle:60,1')->group(function () {
     Route::get('/jobs/{printJob}/pdf', [KioskApiController::class, 'downloadPdf']);
     Route::post('/jobs/{printJob}/printing', [KioskApiController::class, 'markPrinting']);
     Route::post('/jobs/{printJob}/complete', [KioskApiController::class, 'completeJob']);
+    Route::post('/release-pin', [KioskApiController::class, 'releasePin']);
     
     // Rutas nuevas para manejo de errores
     Route::post('/jobs/{printJob}/error', [KioskApiController::class, 'reportError']);

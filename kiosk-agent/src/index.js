@@ -8,7 +8,7 @@ import {
   sendHeartbeat,
   reportJobError
 } from './api.js';
-import { printPdf, savePdf } from './printer.js';
+import { printPdf, savePdf, getPrinterTelemetry } from './printer.js';
 import { runCleanup } from './cleanup.js';
 import { log, setStatus, state } from './state.js';
 import { startWebPanel } from './server.js';
@@ -43,6 +43,8 @@ async function processJob(job) {
       pagesRange: job.pages_range,
       orientation: job.orientation,
       paperSize: job.paper_size,
+      duplex: job.duplex,
+      side: job.side || (job.duplex ? 'duplex' : 'simplex'),
     });
 
     await completeJob(job.id, 'Impreso desde kiosk-agent');
@@ -186,8 +188,9 @@ async function mainLoop() {
   // Sync Loop (Heartbeat & Fallback Polling)
   while (true) {
     try {
-      await sendHeartbeat();
-      setStatus('online', { lastHeartbeatAt: new Date().toISOString(), lastError: null });
+      const printerStatus = await getPrinterTelemetry(state.printerName);
+      await sendHeartbeat(printerStatus);
+      setStatus('online', { lastHeartbeatAt: new Date().toISOString(), lastError: null, printerStatus });
       
       // Fallback: fetch any pending jobs (state 'pagado' or 'imprimiendo') to catch missed events
       const response = await fetchPendingJobs();

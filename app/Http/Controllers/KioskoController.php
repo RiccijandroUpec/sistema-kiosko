@@ -45,28 +45,54 @@ class KioskoController extends Controller
     }
 
     /**
-     * Guardar PDF subido.
+     * Guardar archivo subido (PDF, Word, PPT o Imagen) convirtiéndolo a PDF si es necesario.
      */
     public function uploadPdf(Request $request)
     {
         $request->validate([
-            'pdf' => 'required|mimes:pdf|max:10240', // 10MB
+            'pdf' => 'required|file|max:20480|mimes:pdf,docx,doc,pptx,ppt,jpg,jpeg,png,webp',
             'email' => 'nullable|email',
+        ], [
+            'pdf.mimes' => 'Solo se permiten archivos PDF, documentos Word (.docx/.doc), PowerPoint (.pptx) o imágenes (.jpg/.png).',
+            'pdf.max' => 'El archivo no puede exceder 20 MB.',
         ]);
 
         try {
             $file = $request->file('pdf');
+
+            // Procesar y convertir a PDF si es necesario (imágenes, office)
+            $conversionService = app(\App\Services\DocumentConversionService::class);
+            $conversionResult = $conversionService->convertToPdf($file);
+            $pdfSourcePath = $conversionResult['path'];
+
             $filename = uniqid() . '_' . time() . '.pdf';
-            $path = $file->storeAs('pdfs', $filename, 'public');
+            $storageDest = storage_path('app/public/pdfs/' . $filename);
+
+            if (!file_exists(dirname($storageDest))) {
+                mkdir(dirname($storageDest), 0755, true);
+            }
+
+            copy($pdfSourcePath, $storageDest);
+            $relativePath = 'pdfs/' . $filename;
+
+            // Si fue un archivo temporal generado en la conversión, limpiarlo
+            if ($conversionResult['converted'] && file_exists($pdfSourcePath)) {
+                @unlink($pdfSourcePath);
+            }
 
             // Contar páginas
             $parser = new Parser();
-            $document = $parser->parseFile(storage_path('app/public/' . $path));
-            $pages = count($document->getPages());
+            $document = $parser->parseFile($storageDest);
+            $pages = max(1, count($document->getPages()));
 
-            // Subir a Supabase Storage (persistente, sobrevive a redeploys)
-            $supabasePath = app(\App\Services\SupabaseStorageService::class)
-                ->upload(file_get_contents($file->getRealPath()), $filename);
+            // Subir a Supabase Storage si está configurado
+            $supabasePath = null;
+            try {
+                $supabasePath = app(\App\Services\SupabaseStorageService::class)
+                    ->upload(file_get_contents($storageDest), $filename);
+            } catch (\Exception $e) {
+                // Almacenamiento local disponible como fallback
+            }
 
             // Guardar en base de datos
             $pdfFile = PdfFile::create([
@@ -74,15 +100,19 @@ class KioskoController extends Controller
                 'original_name' => $file->getClientOriginalName(),
                 'email' => $request->email,
                 'pages_count' => $pages,
-                'file_path' => $path,
+                'file_path' => $relativePath,
                 'supabase_path' => $supabasePath,
-                'file_size' => $file->getSize() / 1024, // en KB
+                'file_size' => filesize($storageDest) / 1024, // en KB
             ]);
 
+            $successMsg = $conversionResult['converted']
+                ? "Archivo {$file->getClientOriginalName()} convertido a PDF correctamente ({$pages} pág)."
+                : "PDF subido correctamente. Contiene {$pages} página(s).";
+
             return redirect()->route('kiosko.configure', ['pdf' => $pdfFile->id])
-                ->with('success', 'PDF subido correctamente. Contiene ' . $pages . ' páginas.');
+                ->with('success', $successMsg);
         } catch (\Exception $e) {
-            return back()->withErrors('Error al subir el PDF: ' . $e->getMessage());
+            return back()->withErrors('Error al procesar el archivo: ' . $e->getMessage());
         }
     }
 
@@ -105,11 +135,13 @@ class KioskoController extends Controller
         // Precios por defecto o los de la sede elegida
         $costBW = $selectedKiosk ? (float)$selectedKiosk->precio_blanco_negro : (float)config('printing.cost_bw', 0.05);
         $costColor = $selectedKiosk ? (float)$selectedKiosk->precio_color : (float)config('printing.cost_color', 0.20);
+        $admiteDuplex = $selectedKiosk ? (bool)$selectedKiosk->admite_duplex : false;
 
         return view('kiosko.configure', [
             'pdf' => $pdf,
             'costBW' => $costBW,
             'costColor' => $costColor,
+            'admiteDuplex' => $admiteDuplex,
             'kiosks' => $kiosks,
             'defaultKioskId' => $selectedKiosk ? $selectedKiosk->id : null,
             'defaultKioskLocation' => $selectedKiosk ? $selectedKiosk->nombre_comercial : session('default_kiosk_location'),
@@ -126,6 +158,8 @@ class KioskoController extends Controller
             'color_type' => 'required|in:bw,color',
             'paper_size' => 'required|in:a4,letter,legal',
             'orientation' => 'required|in:portrait,landscape',
+            'duplex' => 'nullable',
+            'delivery_mode' => 'nullable|in:inmediato,pin_retiro',
             'page_selection' => 'nullable|in:all,custom',
             'custom_pages' => 'nullable|string|max:50',
             'kiosk_id' => 'nullable|exists:kioskos,id',
@@ -177,6 +211,12 @@ class KioskoController extends Controller
             ? app(\App\Services\SupabaseStorageService::class)->publicUrl($pdf->supabase_path)
             : asset('storage/' . $pdf->file_path);
 
+        $isDuplex = $kiosko->admite_duplex && filter_var($request->input('duplex'), FILTER_VALIDATE_BOOLEAN);
+        $deliveryMode = $request->input('delivery_mode', 'inmediato');
+        $pinRetiro = ($deliveryMode === 'pin_retiro')
+            ? str_pad((string) random_int(1000, 9999), 4, '0', STR_PAD_LEFT)
+            : null;
+
         $orden = OrdenImpresion::create([
             'kiosko_id' => $kiosko->id,
             'cliente_id' => $cliente->id,
@@ -187,6 +227,9 @@ class KioskoController extends Controller
             'papel' => $request->paper_size,
             'orientacion' => $request->orientation,
             'color' => $request->color_type === 'color' ? 1 : 0,
+            'duplex' => $isDuplex,
+            'modo_entrega' => $deliveryMode,
+            'pin_retiro' => $pinRetiro,
             'costo_total' => $totalCost,
             'estado' => 'pendiente',
         ]);
@@ -214,10 +257,68 @@ class KioskoController extends Controller
             return back()->withErrors('Pago no encontrado.');
         }
 
+        $deunaData = app(\App\Services\DeunaService::class)->generatePaymentData($printJob, $payment);
+
         return view('kiosko.payment', [
             'printJob' => $printJob,
             'payment' => $payment,
+            'deunaData' => $deunaData,
         ]);
+    }
+
+    /**
+     * Verificar estado de la orden en tiempo real para polling (AJAX).
+     */
+    public function checkOrderStatus(OrdenImpresion $printJob)
+    {
+        $payment = $printJob->transacciones()->latest()->first();
+
+        return response()->json([
+            'id' => $printJob->id,
+            'estado' => $printJob->estado,
+            'paid' => in_array($printJob->estado, ['pagado', 'esperando_retiro', 'imprimiendo', 'completado']),
+            'modo_entrega' => $printJob->modo_entrega,
+            'pin_retiro' => $printJob->pin_retiro,
+            'payment_status' => $payment ? $payment->estado : null,
+            'redirect_url' => route('kiosko.status', $printJob->id),
+        ]);
+    }
+
+    /**
+     * Liberar orden para imprimir inmediatamente (presionado desde el móvil o al llegar).
+     */
+    public function releaseNow(OrdenImpresion $printJob)
+    {
+        if (in_array($printJob->estado, ['esperando_retiro', 'pagado'])) {
+            $printJob->update([
+                'estado' => 'pagado',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => '¡Orden enviada a la impresora! Saliendo en este momento.',
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'La orden no está en un estado que permita liberación.',
+        ], 400);
+    }
+
+    /**
+     * Simulación de pago con DeUna para pruebas y demostraciones instantáneas.
+     */
+    public function simulateDeunaPayment(OrdenImpresion $printJob)
+    {
+        $deunaService = app(\App\Services\DeunaService::class);
+        $result = $deunaService->processWebhook([
+            'order_id' => $printJob->id,
+            'status' => 'PAID',
+            'transaction_id' => 'DEMO-' . strtoupper(substr(md5((string) time()), 0, 8)),
+        ]);
+
+        return response()->json($result);
     }
 
     /**

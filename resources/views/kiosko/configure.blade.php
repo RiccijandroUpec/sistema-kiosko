@@ -103,11 +103,13 @@
                             </div>
                         </div>
                         <div class="space-y-1">
-                            <label class="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Papel</label>
-                            <div class="bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-3 flex items-center justify-between">
-                                <span class="text-[10px] font-bold text-slate-800">A4</span>
-                                <input type="hidden" name="paper_size" value="a4">
-                            </div>
+                            <label class="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Tamaño de Papel</label>
+                            <select name="paper_size" x-model="paperSize"
+                                    class="w-full bg-slate-50 border border-slate-100 rounded-xl py-2 px-2 text-[10px] font-bold text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer">
+                                <option value="a4">A4 (210×297 mm)</option>
+                                <option value="letter">Carta (216×279 mm)</option>
+                                <option value="legal">Oficio (216×356 mm)</option>
+                            </select>
                         </div>
                     </div>
 
@@ -136,6 +138,57 @@
                         <input type="hidden" name="orientation" :value="orientation">
                     </div>
 
+                    @if($admiteDuplex)
+                    <div class="space-y-1 bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="text-[9px] font-black text-slate-700 uppercase tracking-wider">Impresión Dúplex</label>
+                            <span class="text-[8px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">Soportado</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" @click="duplex = false"
+                                    class="py-2 px-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1.5"
+                                    :class="!duplex ? 'bg-slate-800 text-white shadow-sm' : 'bg-white text-slate-500 border border-slate-100'">
+                                <span>📄 1 Cara</span>
+                            </button>
+                            <button type="button" @click="duplex = true"
+                                    class="py-2 px-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1.5"
+                                    :class="duplex ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-500 border border-slate-100'">
+                                <span>📑 2 Caras (Dúplex)</span>
+                            </button>
+                        </div>
+                        <input type="hidden" name="duplex" :value="duplex ? '1' : '0'">
+                    </div>
+                    @else
+                    <input type="hidden" name="duplex" value="0">
+                    @endif
+
+                    <!-- MODALIDAD DE ENTREGA / RETIRO -->
+                    <div class="space-y-1.5 pt-1">
+                        <label class="text-[9px] font-black text-slate-700 uppercase tracking-wider ml-1">¿Cuándo imprimir?</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="delivery_mode" value="inmediato" class="hidden" x-model="deliveryMode">
+                                <div class="border-2 rounded-2xl p-2.5 text-left transition-all h-full flex flex-col justify-between"
+                                     :class="deliveryMode === 'inmediato' ? 'border-emerald-500 bg-emerald-50/50 text-emerald-950 shadow-sm' : 'border-slate-100 bg-slate-50/70 text-slate-500'">
+                                    <p class="font-black text-[10px] flex items-center gap-1">
+                                        <span>⚡ Imprimir Ya</span>
+                                    </p>
+                                    <p class="text-[8px] text-slate-500 mt-1 leading-tight">Ya estoy en el local (sin esperas ni PIN)</p>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="delivery_mode" value="pin_retiro" class="hidden" x-model="deliveryMode">
+                                <div class="border-2 rounded-2xl p-2.5 text-left transition-all h-full flex flex-col justify-between"
+                                     :class="deliveryMode === 'pin_retiro' ? 'border-indigo-500 bg-indigo-50/50 text-indigo-950 shadow-sm' : 'border-slate-100 bg-slate-50/70 text-slate-500'">
+                                    <p class="font-black text-[10px] flex items-center gap-1">
+                                        <span>🔒 Retirar con PIN</span>
+                                    </p>
+                                    <p class="text-[8px] text-slate-500 mt-1 leading-tight">Voy en camino / Mayor privacidad</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
                     <button type="submit" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-center shadow-lg hover:bg-indigo-700 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm tracking-tight">
                         CONTINUAR AL PAGO
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
@@ -152,6 +205,9 @@
                 costBW: {{ $costBW }},
                 costColor: {{ $costColor }},
                 colorType: 'bw', copies: 1, pageSelection: 'all', customPages: '', orientation: 'portrait',
+                paperSize: 'a4',
+                duplex: false,
+                deliveryMode: 'inmediato',
                 get pagesToPrint() { return this.pageSelection === 'all' ? this.totalPdfPages : this.parsePageRange(this.customPages); },
                 get costPerPage() { return this.colorType === 'color' ? this.costColor : this.costBW; },
                 get total() { return (this.pagesToPrint * this.copies) * this.costPerPage; },

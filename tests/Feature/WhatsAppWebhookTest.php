@@ -9,6 +9,7 @@ use App\Models\TransaccionPago;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
+use Illuminate\Support\Facades\Cache;
 
 class WhatsAppWebhookTest extends TestCase
 {
@@ -18,6 +19,9 @@ class WhatsAppWebhookTest extends TestCase
     {
         parent::setUp();
 
+        // Clear any cached webhook locks to ensure each test runs independently
+        Cache::flush();
+
         // Sin esto GeminiVisionService devuelve null de entrada (early-return por
         // api_key vacio) y ningun test de comprobantes llegaria a probar la logica real.
         config(['gemini.api_key' => 'test-key']);
@@ -26,7 +30,7 @@ class WhatsAppWebhookTest extends TestCase
         // mandar WhatsApp real en los tests. Las demas llamadas HTTP (Gemini,
         // downloadMedia) se configuran por test segun lo que necesiten simular.
         Http::fake([
-            'http://127.0.0.1:8080/message/sendText/*' => Http::response(['status' => 'ok'], 200),
+            'http://localhost:8080/message/sendText/*' => Http::response(['status' => 'ok'], 200),
         ]);
     }
 
@@ -52,8 +56,8 @@ class WhatsAppWebhookTest extends TestCase
     protected function fakeMediaAndGemini(float $monto, string $referencia = 'ABC123'): void
     {
         Http::fake([
-            'http://127.0.0.1:8080/message/sendText/*' => Http::response(['status' => 'ok'], 200),
-            'http://127.0.0.1:8080/chat/getBase64FromMediaMessage/*' => Http::response([
+            'http://localhost:8080/message/sendText/*' => Http::response(['status' => 'ok'], 200),
+            'http://localhost:8080/chat/getBase64FromMediaMessage/*' => Http::response([
                 'base64' => base64_encode('contenido-de-imagen-falso'),
             ], 200),
             'https://generativelanguage.googleapis.com/*' => Http::response([

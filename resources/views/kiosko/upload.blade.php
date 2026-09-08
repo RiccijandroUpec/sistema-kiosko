@@ -36,8 +36,15 @@
                     <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
                     </div>
-                    <h2 class="text-2xl font-black text-slate-800 mb-2 tracking-tight">Sube tu PDF</h2>
-                    <p class="text-slate-400 text-sm mb-8 font-medium">Selecciona tu archivo para empezar.</p>
+                    <h2 class="text-2xl font-black text-slate-800 mb-2 tracking-tight">Sube tu Archivo</h2>
+                    <p class="text-slate-400 text-sm mb-6 font-medium">Soporta PDF, Word, PowerPoint o Imágenes.</p>
+
+                    <div class="flex flex-wrap justify-center gap-1.5 mb-6">
+                        <span class="px-2.5 py-0.5 bg-red-50 text-red-600 rounded-full text-[9px] font-black uppercase">PDF</span>
+                        <span class="px-2.5 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[9px] font-black uppercase">Word (.docx)</span>
+                        <span class="px-2.5 py-0.5 bg-orange-50 text-orange-600 rounded-full text-[9px] font-black uppercase">PowerPoint</span>
+                        <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-black uppercase">Fotos (JPG/PNG)</span>
+                    </div>
                 </div>
 
                 @if ($errors->any())
@@ -49,9 +56,9 @@
                 <form id="uploadForm" action="{{ route('kiosko.upload-pdf') }}" method="POST" enctype="multipart/form-data" class="relative z-10">
                     @csrf
 
-                    <div class="relative border-2 border-dashed border-slate-200 rounded-[1.75rem] p-10 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all duration-300"
+                    <div class="relative border-2 border-dashed border-slate-200 rounded-[1.75rem] p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all duration-300"
                          id="dropZone">
-                        <input type="file" name="pdf" id="pdf" accept=".pdf" required
+                        <input type="file" name="pdf" id="pdf" accept=".pdf,.docx,.doc,.pptx,.ppt,.jpg,.jpeg,.png,.webp" required
                                class="hidden" onchange="updateFileName(this)">
 
                         <div id="uploadIcon" class="w-12 h-12 mx-auto mb-4 text-slate-300 transition-all duration-300">
@@ -61,17 +68,17 @@
                         </div>
 
                         <p class="text-slate-700 mb-1 font-bold text-sm">
-                            <span class="text-indigo-600">Haz clic para seleccionar</span> o arrastra un PDF
+                            <span class="text-indigo-600">Haz clic para seleccionar</span> o arrastra tu archivo
                         </p>
                         <p class="text-xs text-slate-400 font-medium">
-                            Máximo {{ config('printing.max_file_size_mb') }} MB
+                            Máximo 20 MB
                         </p>
                         <p class="text-sm text-emerald-600 mt-3 font-bold" id="fileName"></p>
                     </div>
                 </form>
 
-                <p class="text-center text-[10px] text-slate-300 font-bold uppercase tracking-widest mt-6 relative z-10">
-                    Solo archivos PDF (máximo {{ config('printing.max_file_size_mb') }} MB)
+                <p class="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-6 relative z-10">
+                    Conversión automática a formato de impresión estándar
                 </p>
             </div>
 

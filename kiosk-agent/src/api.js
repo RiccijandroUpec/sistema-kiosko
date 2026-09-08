@@ -34,9 +34,17 @@ export async function authenticateKiosk() {
   });
 }
 
-export async function sendHeartbeat() {
+export async function sendHeartbeat(printerStatus = 'ready') {
   return requestJson(`${config.centralUrl}/api/kiosk/heartbeat`, {
     method: 'POST',
+    body: JSON.stringify({ printer_status: printerStatus }),
+  });
+}
+
+export async function releaseOrderByPin(pin) {
+  return requestJson(`${config.centralUrl}/api/kiosk/release-pin`, {
+    method: 'POST',
+    body: JSON.stringify({ pin }),
   });
 }
 

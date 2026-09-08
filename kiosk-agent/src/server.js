@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { state, log } from './state.js';
 import { config } from './config.js';
+import { releaseOrderByPin } from './api.js';
 
 function renderAdminPage() {
   const statusLabels = {
@@ -90,12 +91,56 @@ function renderAdminPage() {
         </div>
 
         <div class="card" style="margin-top: 20px;">
+          <h2 style="margin-top:0">🔑 Liberar Impresión con PIN de Retiro</h2>
+          <div class="muted" style="margin-bottom: 12px;">Si el cliente tiene un código de retiro de 4 dígitos, ingrésalo aquí para imprimir inmediatamente.</div>
+          <div style="display: flex; gap: 10px; max-width: 400px;">
+            <input type="text" id="kioskPinInput" maxlength="4" placeholder="Ej: 1234" style="flex: 1; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 14px; font-size: 18px; font-weight: 800; text-align: center; letter-spacing: 4px;" />
+            <button onclick="releasePin()" id="btnRelease">Liberar</button>
+          </div>
+          <div id="pinMsg" style="margin-top: 10px; font-size: 14px; font-weight: 700;"></div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
           <h2 style="margin-top:0">Actividad reciente</h2>
           <div class="logs">${logsHtml}</div>
         </div>
       </div>
 
       <script>
+        async function releasePin() {
+          const pin = document.getElementById('kioskPinInput').value.trim();
+          const msg = document.getElementById('pinMsg');
+          const btn = document.getElementById('btnRelease');
+          if (pin.length !== 4) {
+            msg.style.color = '#ef4444';
+            msg.innerText = 'El PIN debe tener 4 dígitos.';
+            return;
+          }
+          btn.disabled = true;
+          btn.innerText = 'Consultando...';
+          try {
+            const res = await fetch('/api/release-pin', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pin })
+            });
+            const data = await res.json();
+            if (data.success) {
+              msg.style.color = '#10b981';
+              msg.innerText = data.message;
+              document.getElementById('kioskPinInput').value = '';
+            } else {
+              msg.style.color = '#ef4444';
+              msg.innerText = data.message || 'Error al liberar orden.';
+            }
+          } catch(e) {
+            msg.style.color = '#ef4444';
+            msg.innerText = 'Error de conexión con el agente.';
+          } finally {
+            btn.disabled = false;
+            btn.innerText = 'Liberar';
+          }
+        }
         async function testConnection() {
           const response = await fetch('/api/test-connection', { method: 'POST' });
           const data = await response.json();
@@ -188,6 +233,31 @@ export function startWebPanel({ onTestConnection }) {
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: false, message: error.message }));
       }
+      return;
+    }
+
+    // Release order with PIN
+    if (url.pathname === '/api/release-pin' && req.method === 'POST') {
+      let body = '';
+      req.on('data', (chunk) => { body += chunk; });
+      req.on('end', async () => {
+        try {
+          const { pin } = JSON.parse(body || '{}');
+          if (!pin) {
+            res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ success: false, message: 'Falta PIN' }));
+            return;
+          }
+          const result = await releaseOrderByPin(pin);
+          log(`Orden liberada con PIN ${pin} desde panel local: ${result.message}`);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result));
+        } catch (error) {
+          log(`Fallo al liberar con PIN: ${error.message}`, 'warn');
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, message: error.message }));
+        }
+      });
       return;
     }
 

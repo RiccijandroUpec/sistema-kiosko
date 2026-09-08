@@ -132,7 +132,9 @@
                         </div>
                         <div class="flex justify-between items-center py-3 border-b border-slate-50">
                             <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Configuración</span>
-                            <span class="text-sm font-bold text-slate-800">{{ $printJob->paginas }} pág(s). • {{ $printJob->color ? 'Color' : 'B/N' }}</span>
+                            <span class="text-sm font-bold text-slate-800">
+                                {{ $printJob->paginas }} pág(s). • {{ $printJob->color ? 'Color' : 'B/N' }} • {{ $printJob->duplex ? 'Dúplex' : '1 Cara' }}
+                            </span>
                         </div>
                         <div class="flex justify-between items-center py-3 border-b border-slate-50">
                             <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Pagado</span>
@@ -150,14 +152,26 @@
                     </div>
                 </div>
 
-                <!-- Alert Box -->
-                @if($isCompleted)
+                <!-- Alert Box / PIN Retiro Card -->
+                @if($status === 'esperando_retiro')
+                    <div class="bg-indigo-600 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-indigo-200 text-center">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-indigo-200">Código de Retiro</span>
+                        <div class="my-4">
+                            <span class="text-5xl font-black font-mono tracking-widest bg-white/10 px-6 py-2.5 rounded-2xl border border-white/20 inline-block">{{ $printJob->pin_retiro ?? '----' }}</span>
+                        </div>
+                        <p class="text-indigo-100 text-xs mb-6">Ingresa este código en la pantalla del local <strong>{{ $printJob->kiosko?->nombre_comercial }}</strong> o presiona el botón verde si ya estás frente a la máquina:</p>
+                        
+                        <button onclick="releaseNow()" id="btnReleaseNow" class="w-full py-4 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2">
+                            <span>🖨️</span> ¡YA ESTOY EN EL LOCAL! IMPRIMIR AHORA
+                        </button>
+                    </div>
+                @elseif($isCompleted)
                     <div class="bg-emerald-500 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-emerald-100 text-center">
                         <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
                             <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
                         </div>
                         <h4 class="text-xl font-black mb-2">¡Todo listo!</h4>
-                        <p class="text-emerald-50 font-medium text-sm leading-relaxed">Puedes pasar a retirar tu impresión. Muestra tu código de referencia al administrador.</p>
+                        <p class="text-emerald-50 font-medium text-sm leading-relaxed">Tu documento ha salido de la impresora. ¡Gracias por usar nuestro servicio!</p>
                     </div>
                 @elseif($isCancelled)
                     <div class="bg-red-500 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-red-100 text-center">
@@ -166,17 +180,38 @@
                     </div>
                 @else
                     <div class="bg-white rounded-[2.5rem] p-8 border-2 border-dashed border-slate-200 text-center">
-                        <p class="text-slate-400 text-sm font-medium">La página se actualizará automáticamente cada 30 segundos.</p>
+                        <p class="text-slate-400 text-sm font-medium">La página se actualizará automáticamente.</p>
                     </div>
                 @endif
             </div>
         </div>
     </main>
 
-    @if(!$isCompleted && !$isCancelled)
     <script>
-        setTimeout(() => location.reload(), 30000);
+        async function releaseNow() {
+            const btn = document.getElementById('btnReleaseNow');
+            if (btn) btn.innerText = 'Enviando a la impresora...';
+            try {
+                const res = await fetch('{{ route("kiosko.order.release-now", $printJob->id) }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Error al liberar orden');
+                    if (btn) btn.innerText = '🖨️ ¡YA ESTOY EN EL LOCAL! IMPRIMIR AHORA';
+                }
+            } catch(e) {
+                alert('Error de conexión');
+                if (btn) btn.innerText = '🖨️ ¡YA ESTOY EN EL LOCAL! IMPRIMIR AHORA';
+            }
+        }
+
+        @if(!$isCompleted && !$isCancelled)
+        setTimeout(() => location.reload(), 15000);
+        @endif
     </script>
-    @endif
 </body>
 </html>

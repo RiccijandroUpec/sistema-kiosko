@@ -295,10 +295,10 @@ class WhatsAppController extends Controller
                 $orden->update(['estado' => 'pagado']);
 
                 $this->evolutionService->sendMessage(
-                    $from, 
+                    $from,
                     "✅ *¡Pago confirmado exitosamente!*\nDetecté un pago de *$" . number_format($montoExtraido, 2) . "*.\n\n🖨️ Tu documento acaba de ser liberado y ya se está imprimiendo en el kiosko."
                 );
-                
+
                 Log::info('Pago liberado por Gemini Vision', ['monto' => $montoExtraido, 'ref' => $referenciaExtraida]);
             } else {
                 $this->evolutionService->sendMessage($from, "⚠️ Detecté un pago por $" . number_format($montoExtraido, 2) . ", pero no encontré ninguna impresión pendiente con ese valor exacto. Acércate al administrador.");

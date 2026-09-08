@@ -22,12 +22,16 @@ class OrdenImpresion extends Model
         'papel',
         'orientacion',
         'color',
+        'duplex',
+        'modo_entrega',
+        'pin_retiro',
         'costo_total',
         'estado',
     ];
 
     protected $casts = [
         'color' => 'boolean',
+        'duplex' => 'boolean',
         'costo_total' => 'decimal:2',
     ];
 

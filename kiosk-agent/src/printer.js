@@ -67,6 +67,13 @@ export async function printPdf(filePath, printerName = null, options = {}) {
       printOptions.paperSize = paperSizeMap[options.paperSize];
     }
 
+    // Soporte para Impresión Dúplex (Doble Cara)
+    if (options.duplex || options.side === 'duplex') {
+      printOptions.side = 'duplex';
+    } else if (options.side === 'simplex') {
+      printOptions.side = 'simplex';
+    }
+
     await ptp.print(filePath, printOptions);
     return;
   }
@@ -89,6 +96,11 @@ export async function printPdf(filePath, printerName = null, options = {}) {
       args.push('-o', 'landscape');
     }
 
+    // Dúplex en Linux CUPS
+    if (options.duplex || options.side === 'duplex') {
+      args.push('-o', 'sides=two-sided-long-edge');
+    }
+
     // Opciones de color de CUPS
     if (options.colorType === 'bw') {
       args.push('-o', 'ColorModel=Gray', '-o', 'ColorMode=monochrome');
@@ -105,4 +117,30 @@ export async function printPdf(filePath, printerName = null, options = {}) {
   }
 
   throw new Error('Printing is not configured for this platform yet.');
+}
+
+/**
+ * Consulta básica del estado de la impresora física
+ */
+export async function getPrinterTelemetry(printerName) {
+  if (process.platform === 'win32' && printerName) {
+    try {
+      const { stdout } = await execFileAsync('powershell', [
+        '-NoProfile',
+        '-Command',
+        `Get-Printer -Name "${printerName}" -ErrorAction SilentlyContinue | Select-Object -Property PrinterStatus, WorkOffline | ConvertTo-Json -Compress`
+      ], { timeout: 3000 });
+
+      if (stdout && stdout.trim()) {
+        const info = JSON.parse(stdout.trim());
+        if (info.WorkOffline) return 'offline';
+        if (info.PrinterStatus === 5) return 'out_of_paper';
+        if (info.PrinterStatus === 4) return 'error';
+        return 'ready';
+      }
+    } catch {
+      // Si la consulta falla, no bloqueamos el flujo
+    }
+  }
+  return 'ready';
 }

@@ -90,24 +90,43 @@
                     </div>
                 </div>
 
-                <!-- Botones de Acción Mini -->
-                <div class="space-y-2">
+                <!-- Botones de Acción DeUna y Métodos -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between px-1">
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-2.5 w-2.5">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                            </span>
+                            <span class="text-[10px] font-bold text-slate-600">Verificación automática activa</span>
+                        </div>
+                        <span class="text-[9px] font-mono text-slate-400">polling 2s</span>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-2">
-                        <a href="https://link.deuna.app/open" class="py-3 bg-[#FFD100] text-black rounded-xl font-black text-[10px] text-center shadow-sm flex items-center justify-center gap-1">
-                            PAGAR CON DEUNA!
+                        <a href="{{ $deunaData['deep_link'] ?? 'https://link.deuna.app/open' }}" target="_blank"
+                           class="py-3.5 bg-[#FFD100] text-black hover:bg-[#ffe033] rounded-xl font-black text-[11px] text-center shadow-sm flex items-center justify-center gap-1.5 transition-transform active:scale-95">
+                            <span>📲</span> ABRIR DEUNA APP
                         </a>
-                        <button @click="openModal = true" class="py-3 bg-slate-50 text-slate-400 rounded-xl font-bold text-[8px] uppercase border border-slate-100">
-                            🔓 PIN
+                        <button @click="openModal = true" class="py-3.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl font-bold text-[10px] uppercase border border-slate-200 flex items-center justify-center gap-1 transition-all">
+                            <span>🔓</span> PIN LOCAL
                         </button>
                     </div>
+
+                    <!-- Botón de Simulación para Pruebas / Demostración Instantánea -->
+                    <button type="button" @click="simulateDeuna()" :disabled="isSimulating"
+                            class="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5">
+                        <span x-show="!isSimulating">⚡ Simular Aprobación DeUna (Modo Demo / Test)</span>
+                        <span x-show="isSimulating">Aprobando pago...</span>
+                    </button>
                     
-                    <form method="POST" action="{{ route('kiosko.save-reference', $printJob->id) }}" class="bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-inner mt-2">
+                    <form method="POST" action="{{ route('kiosko.save-reference', $printJob->id) }}" class="bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-inner">
                         @csrf
-                        <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1">¿Ya transferiste? Confirma el código:</label>
-                        <p class="text-[9px] text-slate-500 mb-2">Debe ser el <strong>mismo código "Concepto"</strong> que usaste en tu transferencia, para que lo encontremos en el correo de tu banco.</p>
+                        <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1">¿Transferencia bancaria directa? Confirma el código:</label>
+                        <p class="text-[9px] text-slate-500 mb-2">Pega el número de comprobante o referencia de tu banco.</p>
                         <div class="flex gap-2">
                             <input type="text" name="referencia" required value="{{ strtoupper(substr($payment->id, 0, 8)) }}" placeholder="Ej: {{ strtoupper(substr($payment->id, 0, 8)) }}" class="w-full text-xs rounded-lg border-slate-300 focus:ring-indigo-500 focus:border-indigo-500 px-3 py-2 font-mono">
-                            <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors">
+                            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors shrink-0">
                                 Validar
                             </button>
                         </div>
@@ -155,7 +174,7 @@
 
         function paymentPIN() {
             return {
-                openModal: false, pin: '', error: '',
+                openModal: false, pin: '', error: '', isSimulating: false,
                 init() {
                     window.addEventListener('keydown', (e) => {
                         if (!this.openModal) return;
@@ -168,6 +187,46 @@
                             this.pin = '';
                         }
                     });
+
+                    // Iniciar polling para verificar pago en segundo plano automáticamente
+                    this.startStatusPolling();
+                },
+                startStatusPolling() {
+                    const statusUrl = '{{ route("kiosko.order.status-check", $printJob->id) }}';
+                    const interval = setInterval(async () => {
+                        try {
+                            const res = await fetch(statusUrl);
+                            if (res.ok) {
+                                const data = await res.json();
+                                if (data.paid) {
+                                    clearInterval(interval);
+                                    window.location.href = data.redirect_url;
+                                }
+                            }
+                        } catch (e) {
+                            console.log('Error verificando estado:', e);
+                        }
+                    }, 2000);
+                },
+                async simulateDeuna() {
+                    this.isSimulating = true;
+                    try {
+                        const res = await fetch('{{ route("kiosko.order.simulate-deuna", $printJob->id) }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            }
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            window.location.href = '{{ route("kiosko.status", $printJob->id) }}';
+                        }
+                    } catch (e) {
+                        alert('Error al simular pago');
+                    } finally {
+                        this.isSimulating = false;
+                    }
                 },
                 async addNumber(n) {
                     if (this.pin.length < 4) {

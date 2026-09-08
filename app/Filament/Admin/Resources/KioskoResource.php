@@ -75,11 +75,16 @@ class KioskoResource extends Resource
                             ->helperText('PIN de 4 dígitos para acceso local.'),
                     ]),
                     Forms\Components\TextInput::make('nombre_cups')
-                        ->label('Nombre de Impresora (CUPS)')
+                        ->label('Nombre de Impresora (CUPS / Windows)')
                         ->required()
                         ->maxLength(100)
-                        ->helperText('Nombre exacto de la impresora en el sistema Linux (comando: lpstat -a)')
-                        ->placeholder('Ej: HP_LaserJet_Pro'),
+                        ->helperText('Nombre exacto de la impresora en el sistema (ej: EPSONF878E1 (L4360 Series) o HP_LaserJet)')
+                        ->placeholder('Ej: EPSONF878E1 (L4360 Series)'),
+                    Forms\Components\Toggle::make('admite_duplex')
+                        ->label('Admite Impresión Doble Cara (Dúplex)')
+                        ->default(false)
+                        ->helperText('Activar solo si la impresora física cuenta con soporte para impresión dúplex automática.')
+                        ->inline(false),
                 ]),
 
             Section::make('Precios de Impresión')
@@ -170,6 +175,11 @@ class KioskoResource extends Resource
                     ->money('USD')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\IconColumn::make('admite_duplex')
+                    ->label('Dúplex')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle'),
                 Tables\Columns\TextColumn::make('nombre_cups')
                     ->label('Impresora CUPS')
                     ->searchable()

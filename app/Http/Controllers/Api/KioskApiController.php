@@ -70,8 +70,11 @@ class KioskApiController extends Controller
             return $this->unauthorized();
         }
 
+        $printerStatus = $request->input('printer_status');
+        $estado = ($printerStatus === 'out_of_paper' || $printerStatus === 'error') ? 'inactivo' : 'activo';
+
         $kiosk->update([
-            'estado' => 'activo',
+            'estado' => $estado,
             'ultima_conexion' => now(),
         ]);
 
@@ -79,7 +82,48 @@ class KioskApiController extends Controller
             'success' => true,
             'data' => [
                 'server_time' => now()->toDateTimeString(),
+                'printer_status_received' => $printerStatus,
             ],
+        ]);
+    }
+
+    /**
+     * Liberar orden en el kiosko mediante el PIN de retiro del cliente.
+     */
+    public function releasePin(Request $request): JsonResponse
+    {
+        $kiosk = $this->resolveKiosk($request);
+
+        if (!$kiosk) {
+            return $this->unauthorized();
+        }
+
+        $request->validate([
+            'pin' => 'required|string|digits:4',
+        ]);
+
+        $pin = $request->input('pin');
+
+        $orden = OrdenImpresion::where('kiosko_id', $kiosk->id)
+            ->where('pin_retiro', $pin)
+            ->where('estado', 'esperando_retiro')
+            ->first();
+
+        if (!$orden) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se encontró ninguna orden pendiente de retiro con ese PIN en este kiosko.',
+            ], 404);
+        }
+
+        $orden->update([
+            'estado' => 'pagado',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "¡Orden liberada con éxito! Imprimiendo {$orden->paginas} páginas.",
+            'data' => $this->jobPayload($orden),
         ]);
     }
 
@@ -271,6 +315,8 @@ class KioskApiController extends Controller
 
     protected function jobPayload(OrdenImpresion $job): array
     {
+        $isDuplex = (bool) ($job->duplex ?? false);
+
         return [
             'id' => $job->id,
             'job_reference' => $job->id, // Usamos el ID de la orden como referencia
@@ -281,6 +327,10 @@ class KioskApiController extends Controller
             'color_type' => $job->color ? 'color' : 'bw',
             'paper_size' => $job->papel ?? 'a4',
             'orientation' => $job->orientacion ?? 'portrait',
+            'duplex' => $isDuplex,
+            'side' => $isDuplex ? 'duplex' : 'simplex',
+            'delivery_mode' => $job->modo_entrega ?? 'inmediato',
+            'pin_retiro' => $job->pin_retiro,
             'cost' => $job->costo_total,
             'paid' => in_array($job->estado, ['pagado', 'imprimiendo', 'completado']),
             'created_at' => optional($job->created_at)->toDateTimeString(),

@@ -40,6 +40,9 @@ Route::post('/crear-trabajo/{pdf}', [KioskoController::class, 'createPrintJob'])
 
 Route::get('/pago/{printJob}', [KioskoController::class, 'paymentForm'])->name('kiosko.payment');
 Route::post('/pago/{printJob}/referencia', [KioskoController::class, 'saveReference'])->middleware('throttle:20,1')->name('kiosko.save-reference');
+Route::get('/orden/{printJob}/status-check', [KioskoController::class, 'checkOrderStatus'])->name('kiosko.order.status-check');
+Route::post('/orden/{printJob}/liberar-ahora', [KioskoController::class, 'releaseNow'])->name('kiosko.order.release-now');
+Route::post('/orden/{printJob}/simular-deuna', [KioskoController::class, 'simulateDeunaPayment'])->name('kiosko.order.simulate-deuna');
 Route::get('/estado/{jobReference}', [KioskoController::class, 'status'])->name('kiosko.status');
 Route::get('/buscar', [KioskoController::class, 'searchForm'])->name('kiosko.search-form');
 Route::post('/buscar', [KioskoController::class, 'searchJob'])->name('kiosko.search');
