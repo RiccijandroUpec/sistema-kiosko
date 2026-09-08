@@ -7,16 +7,16 @@
     <!-- Modern Google Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #7c3aed;
-            --primary-glow: rgba(124, 58, 237, 0.3);
-            --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #070a13 100%);
-            --card-bg: rgba(17, 24, 39, 0.7);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
+            --primary: #4f46e5;
+            --primary-glow: rgba(79, 70, 229, 0.16);
+            --bg-gradient: radial-gradient(circle at top right, #e0e7ff 0%, #f8fafc 50%);
+            --card-bg: rgba(255, 255, 255, 0.92);
+            --card-border: #f1f5f9;
+            --text-main: #0f172a;
+            --text-muted: #94a3b8;
             --emerald: #10b981;
             --emerald-glow: rgba(16, 185, 129, 0.3);
         }
@@ -25,7 +25,7 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             -webkit-font-smoothing: antialiased;
         }
 
@@ -66,7 +66,7 @@
         .brand-logo {
             width: 45px;
             height: 45px;
-            background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%);
+            background: #eef2ff;
             border-radius: 12px;
             display: flex;
             align-items: center;
@@ -80,9 +80,9 @@
             font-size: 24px;
             font-weight: 900;
             letter-spacing: -0.5px;
-            background: linear-gradient(to right, #ffffff, #a5b4fc);
+            color: #1e293b;
             -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            -webkit-text-fill-color: initial;
         }
 
         .brand-location {
@@ -155,9 +155,9 @@
         }
 
         .hero h1 span {
-            background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%);
+            color: var(--primary);
             -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            -webkit-text-fill-color: initial;
         }
 
         .hero p {
@@ -610,6 +610,20 @@
             color: var(--text-muted);
             margin-bottom: 30px;
         }
+
+        .back-btn { background: #ffffff; border-color: #e2e8f0; color: #475569; box-shadow: 0 8px 20px rgba(15, 23, 42, .05); }
+        .back-btn:hover { background: #eef2ff; color: var(--primary); }
+        .input-group input { background: #ffffff; border-color: #e2e8f0; color: #0f172a; box-shadow: inset 0 1px 2px rgba(15, 23, 42, .03); }
+        .input-group input:focus { background: #ffffff; }
+        .primary-btn { background: var(--primary); }
+        .key { background: #ffffff; border-color: #e2e8f0; color: #334155; box-shadow: 0 6px 14px rgba(15, 23, 42, .05); }
+        .key:active { color: #ffffff; }
+        .info-row { border-bottom-color: #e2e8f0; }
+        .info-value { color: #1e293b; }
+        .total-glow { background: linear-gradient(90deg, #eef2ff 0%, rgba(238, 242, 255, 0) 100%); }
+        .total-glow .info-value { color: var(--primary); }
+        .pay-qr-card { border-left-color: #e2e8f0; }
+        .printing-status-view { box-shadow: 0 24px 60px rgba(99, 102, 241, .12); }
 
         /* Footer */
         footer {

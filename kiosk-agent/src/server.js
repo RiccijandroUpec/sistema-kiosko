@@ -28,27 +28,29 @@ function renderAdminPage() {
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>Kiosk Agent - Admin</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
       <style>
-        :root { color-scheme: dark; }
-        body { margin: 0; font-family: Inter, system-ui, sans-serif; background: linear-gradient(135deg, #0f172a, #111827 45%, #1f2937); color: #e5e7eb; }
+        :root { color-scheme: light; }
+        body { margin: 0; font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif; background: radial-gradient(circle at top right, #e0e7ff 0%, #f8fafc 50%); color: #0f172a; }
         .wrap { max-width: 1100px; margin: 0 auto; padding: 32px; }
         .grid { display: grid; gap: 16px; grid-template-columns: 1.1fr 0.9fr; }
-        .card { background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 20px; padding: 20px; backdrop-filter: blur(16px); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+        .card { background: rgba(255, 255, 255, .92); border: 1px solid #f1f5f9; border-radius: 28px; padding: 24px; box-shadow: 0 24px 60px rgba(99, 102, 241, .12); }
         h1 { margin: 0 0 8px; font-size: 32px; }
         .muted { color: #94a3b8; }
-        .pill { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; background: rgba(59, 130, 246, 0.12); color: #93c5fd; font-size: 12px; font-weight: 700; }
+        .pill { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; background: #eef2ff; color: #4f46e5; font-size: 12px; font-weight: 800; }
         .status-online { color: #6ee7b7; border-color: rgba(16, 185, 129, .35); }
         .status-degraded { color: #fcd34d; border-color: rgba(245, 158, 11, .35); }
         .status-error { color: #fca5a5; border-color: rgba(248, 113, 113, .35); }
         .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-        .stat { border-radius: 16px; padding: 14px; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(148, 163, 184, 0.12); }
+        .stat { border-radius: 16px; padding: 14px; background: #f8fafc; border: 1px solid #f1f5f9; }
         .label { color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
         .value { margin-top: 4px; font-size: 18px; font-weight: 800; word-break: break-word; }
         .buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
-        button, a.btn { appearance: none; border: 0; cursor: pointer; padding: 12px 16px; border-radius: 14px; font-weight: 800; text-decoration: none; color: #fff; background: linear-gradient(135deg, #2563eb, #7c3aed); }
-        button.secondary, a.secondary { background: rgba(30, 41, 59, 0.9); border: 1px solid rgba(148, 163, 184, .2); }
+        button, a.btn { appearance: none; border: 0; cursor: pointer; padding: 12px 16px; border-radius: 14px; font-weight: 800; text-decoration: none; color: #fff; background: #4f46e5; box-shadow: 0 10px 24px rgba(79, 70, 229, .18); }
+        button.secondary, a.secondary { background: #fff; color: #475569; border: 1px solid #e2e8f0; box-shadow: none; }
         .logs { display: grid; gap: 10px; max-height: 530px; overflow: auto; }
-        .log { border-radius: 14px; padding: 12px 14px; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(148, 163, 184, 0.12); }
+        .log { border-radius: 14px; padding: 12px 14px; background: #f8fafc; border: 1px solid #f1f5f9; }
         .log .meta { color: #94a3b8; font-size: 12px; margin-bottom: 4px; }
         .log .message { font-size: 14px; line-height: 1.4; }
         .log.error { border-color: rgba(248, 113, 113, 0.35); }
