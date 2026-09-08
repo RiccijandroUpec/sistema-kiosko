@@ -5,6 +5,14 @@ import { state, log } from './state.js';
 import { config } from './config.js';
 
 function renderAdminPage() {
+  const statusLabels = {
+    starting: 'Iniciando',
+    online: 'Conectado',
+    degraded: 'Con problemas',
+    error: 'Error',
+  };
+  const statusLabel = statusLabels[state.status] || state.status;
+
   const logsHtml = state.recentLogs.length
     ? state.recentLogs.map((entry) => `
         <div class="log ${entry.level}">
@@ -29,6 +37,9 @@ function renderAdminPage() {
         h1 { margin: 0 0 8px; font-size: 32px; }
         .muted { color: #94a3b8; }
         .pill { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; background: rgba(59, 130, 246, 0.12); color: #93c5fd; font-size: 12px; font-weight: 700; }
+        .status-online { color: #6ee7b7; border-color: rgba(16, 185, 129, .35); }
+        .status-degraded { color: #fcd34d; border-color: rgba(245, 158, 11, .35); }
+        .status-error { color: #fca5a5; border-color: rgba(248, 113, 113, .35); }
         .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
         .stat { border-radius: 16px; padding: 14px; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(148, 163, 184, 0.12); }
         .label { color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
@@ -60,10 +71,16 @@ function renderAdminPage() {
             <a class="btn secondary" href="/" target="_self">Pantalla de Impresión</a>
           </div>
           <div class="stats">
-            <div class="stat"><div class="label">Estado</div><div class="value">${escapeHtml(state.status)}</div></div>
+            <div class="stat"><div class="label">Estado</div><div class="value status-${escapeHtml(state.status)}">${escapeHtml(statusLabel)}</div></div>
             <div class="stat"><div class="label">Kiosko ID</div><div class="value">${escapeHtml(String(state.kioskId ?? 'sin registrar'))}</div></div>
+            <div class="stat"><div class="label">Impresora</div><div class="value">${escapeHtml(state.printerName || config.printerName || 'no configurada')}</div></div>
+            <div class="stat"><div class="label">Trabajo actual</div><div class="value">${escapeHtml(state.currentJob || 'ninguno')}</div></div>
             <div class="stat"><div class="label">Último heartbeat</div><div class="value">${escapeHtml(state.lastHeartbeatAt || 'nunca')}</div></div>
             <div class="stat"><div class="label">Última sincronización</div><div class="value">${escapeHtml(state.lastSyncAt || 'nunca')}</div></div>
+          </div>
+          <div class="stat" style="margin-top: 12px; display: ${state.lastError ? 'block' : 'none'}; border-color: rgba(248, 113, 113, .35);">
+            <div class="label">Último error</div>
+            <div class="value" style="color: #fca5a5;">${escapeHtml(state.lastError || '')}</div>
           </div>
           <div class="footer">
             Central: ${escapeHtml(state.centralUrl || config.centralUrl)} • Modo impresión: ${escapeHtml(config.printMode)}
